@@ -1,56 +1,330 @@
+:root {
+  --bg: #081426;
+  --bg-soft: #0d1b2a;
+  --surface: #11263d;
+  --surface-hover: #173654;
+
+  --primary: #2f80ed;
+  --accent: #4cc9f0;
+
+  --text: #f8fafc;
+  --text-soft: #b8c4d4;
+  --border: #24415f;
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+
+  --radius-xl: 24px;
+  --radius-lg: 18px;
+}
+
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f7f7f7;
-  color: #222;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top right, rgba(47, 128, 237, 0.16), transparent 28%),
+    linear-gradient(180deg, #081426 0%, #0b1727 100%);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans Thai",
+    sans-serif;
 }
 
-.container {
-  width: min(100% - 32px, 480px);
+body {
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(100%, 720px);
   margin: 0 auto;
-  padding-top: 64px;
+  padding:
+    max(28px, env(safe-area-inset-top))
+    20px
+    max(36px, env(safe-area-inset-bottom));
 }
 
 .hero {
-  text-align: center;
-  margin-bottom: 40px;
+  padding: 28px 4px 30px;
+}
+
+.brand-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(145deg, rgba(76, 201, 240, 0.22), rgba(47, 128, 237, 0.12));
+  border: 1px solid rgba(76, 201, 240, 0.25);
+  box-shadow:
+    0 14px 40px rgba(0, 0, 0, 0.24),
+    inset 0 0 24px rgba(76, 201, 240, 0.04);
+  margin-bottom: 24px;
+}
+
+.brand-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 22px rgba(76, 201, 240, 0.8);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .hero h1 {
-  margin-bottom: 8px;
-  font-size: 32px;
+  margin: 0;
+  font-size: clamp(36px, 9vw, 62px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
 }
 
-.tagline {
-  color: #555;
+.hero-copy {
+  margin: 18px 0 0;
+  max-width: 590px;
+  color: var(--text-soft);
+  font-size: 18px;
+  line-height: 1.75;
 }
 
 .actions {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
-button {
+.action-card {
   width: 100%;
-  padding: 16px;
-  border: 0;
-  border-radius: 12px;
-  font-size: 18px;
+  min-height: 118px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
+    var(--surface);
+  color: var(--text);
+  display: grid;
+  grid-template-columns: 54px 1fr 20px;
+  gap: 14px;
+  align-items: center;
+  text-align: left;
+  padding: 18px;
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
 }
 
-.disclaimer {
-  margin-top: 32px;
-  font-size: 13px;
+.action-card:hover,
+.action-card:focus-visible {
+  transform: translateY(-1px);
+  background: var(--surface-hover);
+  border-color: #37658f;
+  outline: none;
+}
+
+.action-card:active {
+  transform: scale(0.99);
+}
+
+.primary-card {
+  border-color: rgba(76, 201, 240, 0.42);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(47, 128, 237, 0.16),
+      rgba(76, 201, 240, 0.05)
+    ),
+    var(--surface);
+}
+
+.action-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  background: rgba(47, 128, 237, 0.16);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 800;
+  border: 1px solid rgba(76, 201, 240, 0.16);
+}
+
+.action-content {
+  min-width: 0;
+}
+
+.action-content h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.action-content p {
+  margin: 6px 0 0;
+  color: var(--text-soft);
   line-height: 1.6;
-  color: #666;
+  font-size: 15px;
 }
 
-#status {
+.action-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: #dff7ff;
+  background: rgba(76, 201, 240, 0.12);
+  border: 1px solid rgba(76, 201, 240, 0.22);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge.secondary {
+  color: #d5deea;
+  background: rgba(184, 196, 212, 0.08);
+  border-color: rgba(184, 196, 212, 0.14);
+}
+
+.action-arrow {
+  color: #7fa9cf;
+  font-size: 30px;
+}
+
+.disabled-card {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.disabled-card:hover {
+  transform: none;
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.safety-card {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+}
+
+.safety-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #ffd38a;
+  background: rgba(245, 158, 11, 0.14);
+  font-weight: 900;
+}
+
+.safety-card h3 {
+  margin: 2px 0 8px;
+  font-size: 17px;
+}
+
+.safety-card p {
+  margin: 0 0 8px;
+  color: #d8c6a2;
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.safety-card p:last-child {
+  margin-bottom: 0;
+}
+
+.status-card {
+  margin-top: 18px;
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  background: rgba(47, 128, 237, 0.1);
+  border: 1px solid rgba(47, 128, 237, 0.24);
+  color: #dceeff;
+}
+
+.hidden {
+  display: none;
+}
+
+footer {
+  padding: 32px 4px 8px;
+}
+
+footer p {
+  margin: 0;
+  color: #6f8298;
+  font-size: 12px;
   text-align: center;
-  margin-top: 24px;
+}
+
+/* Mobile tuning */
+@media (max-width: 480px) {
+  .app-shell {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .hero {
+    padding-top: 18px;
+  }
+
+  .hero h1 {
+    font-size: 38px;
+  }
+
+  .hero-copy {
+    font-size: 16px;
+  }
+
+  .action-card {
+    min-height: 112px;
+    padding: 16px;
+    grid-template-columns: 48px 1fr 18px;
+  }
+
+  .action-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .action-content h2 {
+    font-size: 19px;
+  }
+
+  .action-content p {
+    font-size: 14px;
+  }
 }
