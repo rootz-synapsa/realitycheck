@@ -1,30 +1,105 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#081426" />
   <title>RealityCheck</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <main class="container">
+  <main class="app-shell">
     <section class="hero">
-      <h1>RealityCheck</h1>
-      <p class="tagline">เช็กก่อนเชื่อ ก่อนโอน ก่อนให้ข้อมูล</p>
+      <div class="brand-mark" aria-hidden="true">
+        <div class="brand-dot"></div>
+      </div>
+
+      <p class="eyebrow">REALITYCHECK</p>
+
+      <h1>เช็กก่อนเชื่อ<br />ก่อนโอน ก่อนให้ข้อมูล</h1>
+
+      <p class="hero-copy">
+        ช่วยตรวจข้อความ รูปภาพ และวิดีโอเบื้องต้น
+        เพื่อให้คุณเห็นสัญญาณความเสี่ยงก่อนตัดสินใจ
+      </p>
     </section>
 
-    <section class="actions">
-      <button id="checkText">ตรวจข้อความ</button>
-      <button id="checkImage">ตรวจรูปภาพ</button>
+    <section class="actions" aria-label="เลือกประเภทการตรวจสอบ">
+
+      <button class="action-card primary-card" data-mode="video">
+        <div class="action-icon">▶</div>
+        <div class="action-content">
+          <div class="action-title-row">
+            <h2>ตรวจวิดีโอ</h2>
+            <span class="badge">แนะนำ</span>
+          </div>
+          <p>
+            เช็กต้นทางไฟล์ ข้อมูล provenance
+            และสัญญาณผิดปกติเบื้องต้น
+          </p>
+        </div>
+        <span class="action-arrow">›</span>
+      </button>
+
+      <button class="action-card" data-mode="image">
+        <div class="action-icon">▧</div>
+        <div class="action-content">
+          <h2>ตรวจรูปภาพ</h2>
+          <p>
+            ตรวจข้อมูลภาพและสัญญาณที่ควรตรวจสอบเพิ่มเติม
+          </p>
+        </div>
+        <span class="action-arrow">›</span>
+      </button>
+
+      <button class="action-card" data-mode="text">
+        <div class="action-icon">≡</div>
+        <div class="action-content">
+          <h2>ตรวจข้อความ</h2>
+          <p>
+            ช่วยประเมินข้อความต้องสงสัย
+            คำขอเงิน และรูปแบบการหลอกลวง
+          </p>
+        </div>
+        <span class="action-arrow">›</span>
+      </button>
+
+      <button class="action-card disabled-card" disabled>
+        <div class="action-icon">◉</div>
+        <div class="action-content">
+          <div class="action-title-row">
+            <h2>ตรวจเสียง</h2>
+            <span class="badge secondary">เร็ว ๆ นี้</span>
+          </div>
+          <p>
+            ตรวจเสียงต้องสงสัยและสัญญาณการปลอมแปลงเบื้องต้น
+          </p>
+        </div>
+      </button>
+
     </section>
 
-    <p class="disclaimer">
-      ผลการตรวจไม่สามารถยืนยันความจริงได้ 100%
-      โปรดตรวจสอบกับแหล่งที่เชื่อถือได้ก่อนตัดสินใจ
-    </p>
+    <section class="safety-card">
+      <div class="safety-icon">!</div>
+      <div>
+        <h3>คำเตือนสำคัญ</h3>
+        <p>
+          ผลลัพธ์จาก RealityCheck เป็นการประเมินเบื้องต้น
+          และไม่สามารถยืนยันความจริงได้ 100%
+        </p>
+        <p>
+          หากมีการขอเงิน ขอ OTP รหัสผ่าน
+          หรือข้อมูลส่วนตัว ควรตรวจสอบกับบุคคลหรือหน่วยงานนั้น
+          ผ่านช่องทางที่คุณเชื่อถือได้ก่อนตัดสินใจ
+        </p>
+      </div>
+    </section>
 
-    <p id="status"></p>
+    <section id="status" class="status-card hidden" aria-live="polite"></section>
+
+    <footer>
+      <p>RealityCheck · Stop. Check. Verify. Then act.</p>
+    </footer>
   </main>
 
   <script src="app.js"></script>
