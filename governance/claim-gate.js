@@ -23,6 +23,18 @@ function isNonEmptyEvidenceValue(value) {
   return true;
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeClaimId(candidate) {
+  if (!isPlainObject(candidate)) {
+    return undefined;
+  }
+
+  return candidate.claimId || candidate.claim_id;
+}
+
 function evaluateClaim(claimId, evidence) {
   const claim = CLAIM_REGISTRY[claimId];
 
@@ -34,7 +46,7 @@ function evaluateClaim(claimId, evidence) {
     };
   }
 
-  const providedEvidence = evidence && typeof evidence === 'object' ? evidence : {};
+  const providedEvidence = isPlainObject(evidence) ? evidence : {};
   const missingRequiredEvidence = claim.requiredEvidence.filter(
     (key) => !isNonEmptyEvidenceValue(providedEvidence[key])
   );
@@ -57,15 +69,20 @@ function evaluateClaim(claimId, evidence) {
 
 function evaluateCandidates(candidates) {
   const list = Array.isArray(candidates) ? candidates : [];
-  const claimResults = list.map((candidate) => evaluateClaim(candidate.claimId, candidate.evidence));
-  const allowedResult = claimResults.find((result) => result.decision === 'ALLOW');
+  const claimResults = [];
 
-  if (allowedResult) {
-    return {
-      decision: 'ALLOW',
-      selectedClaim: allowedResult.claimId,
-      claimResults
-    };
+  for (const candidate of list) {
+    const normalizedCandidate = isPlainObject(candidate) ? candidate : {};
+    const result = evaluateClaim(normalizeClaimId(normalizedCandidate), normalizedCandidate.evidence);
+    claimResults.push(result);
+
+    if (result.decision === 'ALLOW') {
+      return {
+        decision: 'ALLOW',
+        selectedClaim: result.claimId,
+        claimResults
+      };
+    }
   }
 
   return {
