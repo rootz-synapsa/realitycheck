@@ -132,6 +132,23 @@ function looksLikeInlineMappingEntry(source) {
   return /^[A-Za-z0-9_-]+:(?:\s.*)?$/.test(source);
 }
 
+function parseSequenceMappingItem(lines, indent, startIndex, content) {
+  const itemIndent = indent + 2;
+  const [key, rawValue] = splitKeyValue(content);
+  const item = {};
+  let index = startIndex + 1;
+
+  if (rawValue === '') {
+    const [value, nextIndex] = parseNode(lines, itemIndent + 2, startIndex + 1);
+    item[key] = value;
+    index = nextIndex;
+  } else {
+    item[key] = parseScalar(rawValue);
+  }
+
+  return parseMappingEntries(lines, itemIndent, index, item);
+}
+
 function parseSequence(lines, indent, startIndex) {
   const sequence = [];
   let index = startIndex;
@@ -165,19 +182,8 @@ function parseSequence(lines, indent, startIndex) {
     }
 
     if (looksLikeInlineMappingEntry(content)) {
-      const [key, rawValue] = splitKeyValue(content);
-      const item = {};
-      if (rawValue === '') {
-        const [value, nextIndex] = parseNode(lines, indent + 4, index + 1);
-        item[key] = value;
-        index = nextIndex;
-      } else {
-        item[key] = parseScalar(rawValue);
-        index += 1;
-      }
-
-      const [mergedItem, nextIndex] = parseMappingEntries(lines, indent + 2, index, item);
-      sequence.push(mergedItem);
+      const [item, nextIndex] = parseSequenceMappingItem(lines, indent, index, content);
+      sequence.push(item);
       index = nextIndex;
       continue;
     }

@@ -8,15 +8,6 @@ function readFile(rootDirectory, relativePath) {
   return fs.readFileSync(path.join(rootDirectory, relativePath), 'utf8');
 }
 
-function parsePolicyVersionFromMarkdown(markdown, relativePath) {
-  const match = markdown.match(/^Policy version:\s*(.+)$/m);
-  if (!match) {
-    throw new Error(`Missing policy version in ${relativePath}`);
-  }
-
-  return match[1].trim();
-}
-
 function parseRequiredMetadata(markdown, fieldName, relativePath) {
   const expression = new RegExp(`^${fieldName}:\\s*(.+)$`, 'm');
   const match = markdown.match(expression);
@@ -136,7 +127,7 @@ function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
 
   parseRequiredMetadata(workContract, 'Policy source', 'RC-WC-001-REVISED.md');
 
-  const principlesPolicyVersion = parsePolicyVersionFromMarkdown(principles, 'governance/principles.md');
+  const principlesPolicyVersion = parseRequiredMetadata(principles, 'Policy version', 'governance/principles.md');
   if (principlesPolicyVersion !== claims.policy_version) {
     throw new Error('governance/principles.md policy_version must match governance/claims.yaml');
   }

@@ -120,6 +120,19 @@ test('safe fallback uses only claim IDs declared in composition.yaml', () => {
   });
 });
 
+test('analysis failure claim blocks outside ANALYSIS_FAILED state', () => {
+  const decision = gate.evaluateClaim('CLAIM-FAIL-ANALYSIS', {
+    evidence_state: 'INCONCLUSIVE',
+  });
+
+  assert.deepEqual(decision, {
+    claim_id: 'CLAIM-FAIL-ANALYSIS',
+    decision: 'BLOCK',
+    reason: 'UNRESOLVED_REQUIRED_STATE',
+    policy_version: POLICY_VERSION,
+  });
+});
+
 test('analysis failure claim is renderable when its companions are present', () => {
   const result = gate.evaluateResultSet([
     'CLAIM-FAIL-ANALYSIS',
