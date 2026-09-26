@@ -279,6 +279,11 @@ function parseMappingEntries(lines, indent, startIndex, target) {
 function parseYaml(source) {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
   const [document, nextIndex] = parseNode(lines, 0, 0);
+
+  if (document === undefined) {
+    throw new Error('YAML document must not be empty');
+  }
+
   const remainingIndex = skipIgnorable(lines, nextIndex);
 
   if (remainingIndex < lines.length) {

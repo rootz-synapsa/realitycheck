@@ -50,6 +50,10 @@ test('yaml loader rejects trailing top-level content', () => {
   assert.throws(() => parseYaml('value: one\n- extra\n'), /Unexpected trailing YAML content/);
 });
 
+test('yaml loader rejects empty documents', () => {
+  assert.throws(() => parseYaml('\n'), /must not be empty/);
+});
+
 test('unknown claim ID blocks by default', () => {
   const decision = gate.evaluateClaim('CLAIM-NOT-REGISTERED');
 
@@ -287,6 +291,16 @@ test('governance loader fails closed on invalid claim registry structure', () =>
     fs.writeFileSync(claimsPath, claims);
   }, (fixtureRoot) => {
     assert.throws(() => loadGovernance(fixtureRoot), /unsupported normative_level/);
+  });
+});
+
+test('governance loader fails closed on malformed Thai lexicon payloads', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const lexiconPath = path.join(fixtureRoot, 'governance/lexicon.th.yaml');
+    const lexicon = fs.readFileSync(lexiconPath, 'utf8').replace('  - "ของจริง"', '  - 123');
+    fs.writeFileSync(lexiconPath, lexicon);
+  }, (fixtureRoot) => {
+    assert.throws(() => loadGovernance(fixtureRoot), /hard_block_terms must be an array of strings/);
   });
 });
 
