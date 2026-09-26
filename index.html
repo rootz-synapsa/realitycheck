@@ -1,102 +1,788 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#081426" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f6f9ff">
   <title>RealityCheck</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <main class="app-shell">
-    <section class="hero">
-      <div class="brand-mark" aria-hidden="true">
-        <div class="brand-dot"></div>
+
+  <main class="app">
+
+    <!-- HOME -->
+    <section id="homeView" class="view active">
+
+      <header class="brandbar">
+        <div class="brand-mark">✓</div>
+
+        <div>
+          <div class="brand-name">RealityCheck</div>
+          <div class="brand-sub">ช่วยคุณเช็กก่อนตัดสินใจ</div>
+        </div>
+      </header>
+
+
+      <section class="hero">
+
+        <div class="hero-copy">
+
+          <span class="eyebrow">
+            ตรวจสอบก่อนตัดสินใจ
+          </span>
+
+          <h1>
+            เช็กก่อนเชื่อ<br>
+            <span>ก่อนโอน ก่อนให้ข้อมูล</span>
+          </h1>
+
+          <p>
+            หากได้รับคลิป รูป ข้อความ หรือเสียงที่ทำให้ไม่แน่ใจ
+            RealityCheck ช่วยตรวจสัญญาณที่ควรระวัง
+            ก่อนที่คุณจะตัดสินใจทำสิ่งสำคัญ
+          </p>
+
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+
+          <div class="people-circle">
+            <span class="person">👵</span>
+            <span class="shield">✓</span>
+            <span class="person">👨‍👩‍👧</span>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- URGENT CTA -->
+      <button id="urgentButton" class="urgent-card">
+
+        <span class="urgent-icon">
+          !
+        </span>
+
+        <span>
+          <strong>
+            กำลังถูกขอให้โอนเงิน?
+          </strong>
+
+          <small>
+            หยุดก่อน และตรวจสอบให้แน่ใจก่อนทำรายการ
+          </small>
+        </span>
+
+        <span class="arrow">
+          ›
+        </span>
+
+      </button>
+
+
+      <!-- CHECK TYPES -->
+      <section class="section">
+
+        <div class="section-heading">
+
+          <div>
+            <h2>
+              อยากตรวจอะไร?
+            </h2>
+
+            <p>
+              เลือกสิ่งที่คุณได้รับมา
+            </p>
+          </div>
+
+        </div>
+
+
+        <div class="check-grid">
+
+
+          <!-- VIDEO -->
+          <button
+            id="videoButton"
+            class="check-card video-card"
+          >
+
+            <span class="card-icon">
+              ▶
+            </span>
+
+            <span class="card-copy">
+
+              <strong>
+                ตรวจวิดีโอ
+              </strong>
+
+              <small>
+                คลิปวิดีโอหรือคลิปที่ส่งต่อมา
+              </small>
+
+            </span>
+
+            <span class="recommended">
+              แนะนำ
+            </span>
+
+          </button>
+
+
+          <!-- IMAGE -->
+          <button
+            class="check-card disabled-card"
+            data-coming-soon="รูปภาพ"
+          >
+
+            <span class="card-icon">
+              ▧
+            </span>
+
+            <span class="card-copy">
+
+              <strong>
+                ตรวจรูปภาพ
+              </strong>
+
+              <small>
+                รูปที่สงสัยว่าถูกสร้างหรือดัดแปลง
+              </small>
+
+            </span>
+
+            <span class="soon">
+              เร็ว ๆ นี้
+            </span>
+
+          </button>
+
+
+          <!-- TEXT -->
+          <button
+            class="check-card disabled-card"
+            data-coming-soon="ข้อความ"
+          >
+
+            <span class="card-icon">
+              ☰
+            </span>
+
+            <span class="card-copy">
+
+              <strong>
+                ตรวจข้อความ
+              </strong>
+
+              <small>
+                ข้อความแปลก ๆ หรือข้อความขอเงิน
+              </small>
+
+            </span>
+
+            <span class="soon">
+              เร็ว ๆ นี้
+            </span>
+
+          </button>
+
+
+          <!-- AUDIO -->
+          <button
+            class="check-card disabled-card"
+            data-coming-soon="เสียง"
+          >
+
+            <span class="card-icon">
+              ♪
+            </span>
+
+            <span class="card-copy">
+
+              <strong>
+                ตรวจเสียง
+              </strong>
+
+              <small>
+                เสียงโทรศัพท์หรือไฟล์เสียงน่าสงสัย
+              </small>
+
+            </span>
+
+            <span class="soon">
+              เร็ว ๆ นี้
+            </span>
+
+          </button>
+
+
+        </div>
+
+      </section>
+
+
+      <!-- TRUST / GOVERNANCE -->
+      <section class="trust-card">
+
+        <div class="trust-icon">
+          🛡️
+        </div>
+
+        <div>
+
+          <strong>
+            ตรวจจากหลักฐาน ไม่ใช่การคาดเดา
+          </strong>
+
+          <p>
+            RealityCheck รวบรวมสัญญาณที่ตรวจพบ
+            อธิบายเหตุผลของผลลัพธ์
+            และแนะนำขั้นตอนถัดไปเมื่อพบความเสี่ยง
+          </p>
+
+        </div>
+
+      </section>
+
+
+    </section>
+
+
+
+    <!-- VIDEO UPLOAD -->
+    <section
+      id="uploadView"
+      class="view"
+    >
+
+      <header class="page-header">
+
+        <button
+          class="back-button"
+          data-back="home"
+        >
+          ‹
+        </button>
+
+        <div>
+
+          <strong>
+            ตรวจวิดีโอ
+          </strong>
+
+          <small>
+            เลือกคลิปที่คุณต้องการตรวจสอบ
+          </small>
+
+        </div>
+
+      </header>
+
+
+      <section class="content-panel">
+
+        <div class="upload-intro">
+
+          <div class="big-icon">
+            ▶
+          </div>
+
+          <h1>
+            เลือกวิดีโอที่น่าสงสัย
+          </h1>
+
+          <p>
+            เช่น คลิปที่มีคนขอให้โอนเงิน
+            คลิปบุคคลที่คุณรู้จัก
+            หรือคลิปที่ดูผิดปกติ
+          </p>
+
+        </div>
+
+
+        <label
+          class="upload-box"
+          for="videoInput"
+        >
+
+          <span class="upload-icon">
+            ＋
+          </span>
+
+          <strong>
+            เลือกวิดีโอ
+          </strong>
+
+          <span>
+            แตะเพื่อเลือกไฟล์จากอุปกรณ์ของคุณ
+          </span>
+
+        </label>
+
+
+        <input
+          id="videoInput"
+          type="file"
+          accept="video/*"
+          hidden
+        >
+
+
+        <div
+          id="fileCard"
+          class="file-card hidden"
+        >
+
+          <div class="file-icon">
+            ▶
+          </div>
+
+
+          <div class="file-info">
+
+            <strong id="fileName">
+              video.mp4
+            </strong>
+
+            <span id="fileMeta">
+              —
+            </span>
+
+          </div>
+
+
+          <button
+            id="removeFile"
+            class="remove-file"
+          >
+            ×
+          </button>
+
+        </div>
+
+
+        <button
+          id="startCheckButton"
+          class="primary-button"
+          disabled
+        >
+          เริ่มตรวจสอบ
+        </button>
+
+
+        <p class="privacy-note">
+          🔒 ในเวอร์ชันทดลองนี้ ไฟล์จะถูกอ่านบนอุปกรณ์ของคุณ
+          และยังไม่มีการอัปโหลดไปยังระบบวิเคราะห์ภายนอก
+        </p>
+
+
+      </section>
+
+    </section>
+
+
+
+    <!-- PROCESSING -->
+    <section
+      id="processingView"
+      class="view processing-view"
+    >
+
+      <div class="processing-box">
+
+
+        <div class="scanner">
+
+          <div class="scanner-ring"></div>
+
+          <div class="scanner-core">
+            ✓
+          </div>
+
+        </div>
+
+
+        <h1>
+          กำลังตรวจสอบ...
+        </h1>
+
+
+        <p>
+          RealityCheck กำลังอ่านข้อมูลพื้นฐานของไฟล์
+          และประเมินหลักฐานที่สามารถตรวจได้
+        </p>
+
+
+        <div class="progress-track">
+
+          <div
+            id="progressBar"
+            class="progress-bar"
+          ></div>
+
+        </div>
+
+
+        <div class="processing-steps">
+
+
+          <div
+            id="step1"
+            class="processing-step active-step"
+          >
+
+            <span>
+              ✓
+            </span>
+
+            ตรวจสอบไฟล์
+
+          </div>
+
+
+          <div
+            id="step2"
+            class="processing-step"
+          >
+
+            <span>
+              ○
+            </span>
+
+            อ่านข้อมูลวิดีโอ
+
+          </div>
+
+
+          <div
+            id="step3"
+            class="processing-step"
+          >
+
+            <span>
+              ○
+            </span>
+
+            ประเมินหลักฐานที่พบ
+
+          </div>
+
+
+        </div>
+
+
+        <small>
+          อาจใช้เวลาสักครู่
+          ขึ้นอยู่กับขนาดไฟล์และอุปกรณ์
+        </small>
+
+
       </div>
 
-      <p class="eyebrow">REALITYCHECK</p>
-
-      <h1>เช็กก่อนเชื่อ<br />ก่อนโอน ก่อนให้ข้อมูล</h1>
-
-      <p class="hero-copy">
-        ช่วยตรวจข้อความ รูปภาพ และวิดีโอเบื้องต้น
-        เพื่อให้คุณเห็นสัญญาณความเสี่ยงก่อนตัดสินใจ
-      </p>
     </section>
 
-    <section class="actions" aria-label="เลือกประเภทการตรวจสอบ">
 
-      <button class="action-card primary-card" data-mode="video">
-        <div class="action-icon">▶</div>
-        <div class="action-content">
-          <div class="action-title-row">
-            <h2>ตรวจวิดีโอ</h2>
-            <span class="badge">แนะนำ</span>
+
+    <!-- RESULT -->
+    <section
+      id="resultView"
+      class="view"
+    >
+
+      <header class="page-header">
+
+        <button
+          class="back-button"
+          data-back="home"
+        >
+          ‹
+        </button>
+
+
+        <div>
+
+          <strong>
+            ผลการตรวจสอบ
+          </strong>
+
+          <small>
+            RealityCheck
+          </small>
+
+        </div>
+
+      </header>
+
+
+
+      <section class="result-panel uncertain">
+
+
+        <div class="result-symbol">
+          ?
+        </div>
+
+
+        <span class="result-label">
+          ผลเบื้องต้น
+        </span>
+
+
+        <h1>
+          ยังไม่มีหลักฐานเพียงพอ
+        </h1>
+
+
+        <p class="result-summary">
+          จากข้อมูลที่ตรวจได้ในขณะนี้
+          ระบบยังไม่พบหลักฐานเพียงพอที่จะยืนยันว่าเนื้อหานี้
+          ถูกสร้างหรือดัดแปลงด้วย AI
+          หรือเป็นสื่อจากแหล่งที่ตรวจสอบได้
+        </p>
+
+
+
+        <!-- EVIDENCE -->
+        <div class="evidence-box">
+
+          <h2>
+            สิ่งที่ตรวจได้
+          </h2>
+
+
+          <div class="evidence-row">
+
+            <span>
+              ไฟล์วิดีโอ
+            </span>
+
+            <strong id="resultFileStatus">
+              อ่านได้
+            </strong>
+
           </div>
-          <p>
-            เช็กต้นทางไฟล์ ข้อมูล provenance
-            และสัญญาณผิดปกติเบื้องต้น
-          </p>
-        </div>
-        <span class="action-arrow">›</span>
-      </button>
 
-      <button class="action-card" data-mode="image">
-        <div class="action-icon">▧</div>
-        <div class="action-content">
-          <h2>ตรวจรูปภาพ</h2>
-          <p>
-            ตรวจข้อมูลภาพและสัญญาณที่ควรตรวจสอบเพิ่มเติม
-          </p>
-        </div>
-        <span class="action-arrow">›</span>
-      </button>
 
-      <button class="action-card" data-mode="text">
-        <div class="action-icon">≡</div>
-        <div class="action-content">
-          <h2>ตรวจข้อความ</h2>
-          <p>
-            ช่วยประเมินข้อความต้องสงสัย
-            คำขอเงิน และรูปแบบการหลอกลวง
-          </p>
-        </div>
-        <span class="action-arrow">›</span>
-      </button>
+          <div class="evidence-row">
 
-      <button class="action-card disabled-card" disabled>
-        <div class="action-icon">◉</div>
-        <div class="action-content">
-          <div class="action-title-row">
-            <h2>ตรวจเสียง</h2>
-            <span class="badge secondary">เร็ว ๆ นี้</span>
+            <span>
+              ความยาว
+            </span>
+
+            <strong id="resultDuration">
+              —
+            </strong>
+
           </div>
-          <p>
-            ตรวจเสียงต้องสงสัยและสัญญาณการปลอมแปลงเบื้องต้น
-          </p>
+
+
+          <div class="evidence-row">
+
+            <span>
+              ความละเอียด
+            </span>
+
+            <strong id="resultResolution">
+              —
+            </strong>
+
+          </div>
+
+
+          <div class="evidence-row">
+
+            <span>
+              ข้อมูลทางเทคนิคของไฟล์
+            </span>
+
+            <strong>
+              ตรวจแล้ว
+            </strong>
+
+          </div>
+
+
+          <div class="evidence-row">
+
+            <span>
+              Content Credentials
+            </span>
+
+            <strong class="neutral">
+              ยังไม่ได้ตรวจ
+            </strong>
+
+          </div>
+
+
+          <div class="evidence-row">
+
+            <span>
+              ลายน้ำ AI
+            </span>
+
+            <strong class="neutral">
+              ยังไม่ได้ตรวจ
+            </strong>
+
+          </div>
+
+
+          <div class="evidence-row">
+
+            <span>
+              สัญญาณภาพ AI
+            </span>
+
+            <strong class="neutral">
+              ยังไม่ได้ตรวจ
+            </strong>
+
+          </div>
+
+
+          <div class="evidence-row">
+
+            <span>
+              สัญญาณเสียง AI
+            </span>
+
+            <strong class="neutral">
+              ยังไม่ได้ตรวจ
+            </strong>
+
+          </div>
+
+
         </div>
-      </button>
+
+
+
+        <!-- NEXT ACTION -->
+        <div class="next-action-card">
+
+          <span class="next-icon">
+            !
+          </span>
+
+
+          <div>
+
+            <h2>
+              หากเรื่องนี้เกี่ยวข้องกับเงินหรือข้อมูลสำคัญ
+            </h2>
+
+            <p>
+              อย่าเพิ่งโอนเงิน
+              อย่าให้ OTP รหัสผ่าน หรือข้อมูลธนาคาร
+              และควรติดต่อบุคคลหรือองค์กรนั้นผ่านช่องทางอื่นที่คุณหาเอง
+            </p>
+
+          </div>
+
+        </div>
+
+
+
+        <button
+          id="checkAnotherButton"
+          class="primary-button"
+        >
+          ตรวจคลิปอื่น
+        </button>
+
+
+        <button
+          id="homeButton"
+          class="secondary-button"
+        >
+          กลับหน้าหลัก
+        </button>
+
+
+
+        <p class="result-disclaimer">
+          ผลลัพธ์อ้างอิงจากหลักฐานและสัญญาณที่ระบบตรวจได้ในขณะนี้
+          หากเกี่ยวข้องกับเงิน ข้อมูลส่วนตัว
+          หรือการตัดสินใจสำคัญ
+          ควรตรวจสอบผ่านช่องทางอิสระเพิ่มเติม
+        </p>
+
+
+      </section>
 
     </section>
 
-    <section class="trust-card">
-  <div class="trust-icon">🛡️</div>
-  <div>
-    <strong>ตรวจจากหลักฐาน ไม่ใช่การคาดเดา</strong>
-    <p>
-      RealityCheck รวบรวมสัญญาณที่ตรวจพบ อธิบายเหตุผลของผลลัพธ์
-      และแนะนำขั้นตอนถัดไปเมื่อพบความเสี่ยง
-    </p>
-  </div>
-</section>
 
-    <section id="status" class="status-card hidden" aria-live="polite"></section>
 
-    <footer>
-      <p>RealityCheck · Stop. Check. Verify. Then act.</p>
-    </footer>
+    <!-- TOAST -->
+    <div
+      id="toast"
+      class="toast"
+    ></div>
+
+
   </main>
 
+
+
+  <!-- BOTTOM NAV -->
+  <nav
+    id="bottomNav"
+    class="bottom-nav"
+  >
+
+    <button
+      class="nav-item active-nav"
+      data-nav="home"
+    >
+
+      <span>
+        ⌂
+      </span>
+
+      หน้าหลัก
+
+    </button>
+
+
+    <button
+      class="nav-item"
+      data-nav="knowledge"
+    >
+
+      <span>
+        ♡
+      </span>
+
+      ความรู้ป้องกัน
+
+    </button>
+
+
+    <button
+      class="nav-item"
+      data-nav="about"
+    >
+
+      <span>
+        ⓘ
+      </span>
+
+      เกี่ยวกับเรา
+
+    </button>
+
+
+  </nav>
+
+
+
   <script src="app.js"></script>
+
 </body>
 </html>
