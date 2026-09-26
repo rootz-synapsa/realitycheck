@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createClaimGate } = require('./claim-gate.cjs');
 const { loadGovernance } = require('./governance-loader.cjs');
+const { parseYaml } = require('./yaml-loader.cjs');
 
 const gate = createClaimGate(path.resolve(__dirname, '..'));
 const POLICY_VERSION = 'rc-gov-0.2';
@@ -39,6 +40,11 @@ function withGovernanceFixture(mutator, assertion) {
   }
 }
 
+
+test('yaml loader preserves nested inline arrays', () => {
+  const document = parseYaml('value: [[1, 2], [3, 4]]\n');
+  assert.deepEqual(document, { value: [[1, 2], [3, 4]] });
+});
 
 test('unknown claim ID blocks by default', () => {
   const decision = gate.evaluateClaim('CLAIM-NOT-REGISTERED');
@@ -222,6 +228,37 @@ test('mandatory claims still enforce declared companions', () => {
   }, (fixtureRoot) => {
     const fixtureGate = createClaimGate(fixtureRoot);
     const result = fixtureGate.evaluateResultSet(['CLAIM-PROV-ABSENT-SCOPE-NOTE']);
+
+    assert.equal(result.decision, 'HOLD');
+    assert.equal(result.reason, 'MISSING_MANDATORY_COMPANION');
+    assert.equal(result.missing_companion, 'CLAIM-LIMIT-NOT-LEGAL');
+  });
+});
+
+test('transitive companion chains hold when a nested companion is missing', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace(
+      `    gp_refs:
+      - GP-002
+      - GP-014
+`,
+      `    mandatory_companions:
+      - CLAIM-LIMIT-NOT-LEGAL
+    gp_refs:
+      - GP-002
+      - GP-014
+`
+    );
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    const fixtureGate = createClaimGate(fixtureRoot);
+    const result = fixtureGate.evaluateResultSet([
+      'CLAIM-PROV-ABSENT',
+      'CLAIM-PROV-ABSENT-SCOPE-NOTE',
+    ], {
+      evidence: [{ class: 'PROVENANCE', verification: 'ABSENT' }],
+    });
 
     assert.equal(result.decision, 'HOLD');
     assert.equal(result.reason, 'MISSING_MANDATORY_COMPANION');

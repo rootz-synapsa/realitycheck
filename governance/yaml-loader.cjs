@@ -46,6 +46,7 @@ function splitInlineArray(source) {
   const items = [];
   let current = '';
   let quote = null;
+  let bracketDepth = 0;
 
   for (let index = 0; index < source.length; index += 1) {
     const character = source[index];
@@ -60,7 +61,15 @@ function splitInlineArray(source) {
       continue;
     }
 
-    if (character === ',' && quote === null) {
+    if (quote === null) {
+      if (character === '[') {
+        bracketDepth += 1;
+      } else if (character === ']') {
+        bracketDepth -= 1;
+      }
+    }
+
+    if (character === ',' && quote === null && bracketDepth === 0) {
       items.push(current.trim());
       current = '';
       continue;

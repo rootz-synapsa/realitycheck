@@ -54,9 +54,34 @@ function evaluateClaim(governance, claimId, context = {}) {
   return buildAudit(claimId, 'ALLOW', 'PRECONDITIONS_SATISFIED', governance.policyVersion);
 }
 
+function findMissingCompanion(governance, allowedClaimIds, claimId, trail = new Set()) {
+  if (trail.has(claimId)) {
+    return null;
+  }
+
+  trail.add(claimId);
+  const claim = governance.claims.claims[claimId];
+  const companions = Array.isArray(claim.mandatory_companions) ? claim.mandatory_companions : [];
+
+  for (const companionId of companions) {
+    if (!allowedClaimIds.has(companionId)) {
+      return companionId;
+    }
+
+    const nestedMissingCompanion = findMissingCompanion(governance, allowedClaimIds, companionId, trail);
+    if (nestedMissingCompanion) {
+      return nestedMissingCompanion;
+    }
+  }
+
+  trail.delete(claimId);
+  return null;
+}
+
 function evaluateResultSet(governance, claimIds, context = {}) {
   const decisions = claimIds.map((claimId) => evaluateClaim(governance, claimId, context));
   const allowedClaimIds = decisions.filter((decision) => decision.decision === 'ALLOW').map((decision) => decision.claim_id);
+  const allowedClaimIdSet = new Set(allowedClaimIds);
 
   if (allowedClaimIds.length === 0) {
     return {
@@ -69,9 +94,7 @@ function evaluateResultSet(governance, claimIds, context = {}) {
   }
 
   for (const claimId of allowedClaimIds) {
-    const claim = governance.claims.claims[claimId];
-    const mandatoryCompanions = Array.isArray(claim.mandatory_companions) ? claim.mandatory_companions : [];
-    const missingCompanion = mandatoryCompanions.find((companionId) => !allowedClaimIds.includes(companionId));
+    const missingCompanion = findMissingCompanion(governance, allowedClaimIdSet, claimId);
 
     if (missingCompanion) {
       return {
