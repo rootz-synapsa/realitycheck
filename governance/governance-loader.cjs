@@ -18,6 +18,19 @@ function parseRequiredMetadata(markdown, fieldName, relativePath) {
   return match[1].trim();
 }
 
+function validateCamSchemaShape(camSchema) {
+  if (!camSchema || typeof camSchema !== 'object' || Array.isArray(camSchema)) {
+    throw new Error('governance/cam.schema.json must parse to an object');
+  }
+
+  const claimSchema = camSchema.properties && camSchema.properties.claims && camSchema.properties.claims.additionalProperties;
+  const normativeLevelSchema = claimSchema && claimSchema.properties && claimSchema.properties.normative_level;
+
+  if (!Array.isArray(camSchema.required) || !claimSchema || !Array.isArray(claimSchema.required) || !normativeLevelSchema || !Array.isArray(normativeLevelSchema.enum)) {
+    throw new Error('governance/cam.schema.json is missing required claim schema definitions');
+  }
+}
+
 function validateClaimsDocument(claimsDocument, camSchema) {
   if (!claimsDocument || typeof claimsDocument !== 'object' || Array.isArray(claimsDocument)) {
     throw new Error('governance/claims.yaml must parse to an object');
@@ -115,6 +128,7 @@ function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
   const lexiconEn = parseYaml(readFile(rootDirectory, 'governance/lexicon.en.yaml'));
   const camSchema = JSON.parse(readFile(rootDirectory, 'governance/cam.schema.json'));
 
+  validateCamSchemaShape(camSchema);
   validateClaimsDocument(claims, camSchema);
   validateCompositionDocument(composition, claims);
   validateLexiconDocument(lexiconTh, claims, 'governance/lexicon.th.yaml');

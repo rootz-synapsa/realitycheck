@@ -139,9 +139,15 @@ function parseSequenceMappingItem(lines, indent, startIndex, content) {
   let index = startIndex + 1;
 
   if (rawValue === '') {
-    const [value, nextIndex] = parseNode(lines, itemIndent + 2, startIndex + 1);
-    item[key] = value;
-    index = nextIndex;
+    const nestedIndex = skipIgnorable(lines, startIndex + 1);
+    if (nestedIndex >= lines.length || countIndent(lines[nestedIndex]) <= itemIndent) {
+      item[key] = null;
+    } else {
+      const nestedIndent = countIndent(lines[nestedIndex]);
+      const [value, nextIndex] = parseNode(lines, nestedIndent, nestedIndex);
+      item[key] = value;
+      index = nextIndex;
+    }
   } else {
     item[key] = parseScalar(rawValue);
   }
