@@ -8,8 +8,31 @@ function countIndent(line) {
   return indent;
 }
 
+function findUnquotedColonIndex(source) {
+  let quote = null;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+
+    if ((character === '"' || character === "'") && source[index - 1] !== '\\') {
+      if (quote === character) {
+        quote = null;
+      } else if (quote === null) {
+        quote = character;
+      }
+      continue;
+    }
+
+    if (character === ':' && quote === null) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
 function splitKeyValue(source) {
-  const separatorIndex = source.indexOf(':');
+  const separatorIndex = findUnquotedColonIndex(source);
   if (separatorIndex === -1) {
     throw new Error(`Invalid YAML mapping entry: ${source}`);
   }
@@ -129,7 +152,8 @@ function parseNode(lines, indent, startIndex) {
 }
 
 function looksLikeInlineMappingEntry(source) {
-  return /^[A-Za-z0-9_-]+:(?:\s.*)?$/.test(source);
+  const separatorIndex = findUnquotedColonIndex(source);
+  return separatorIndex !== -1 && (separatorIndex === source.length - 1 || /\s/.test(source[separatorIndex + 1]));
 }
 
 function parseSequenceMappingItem(lines, indent, startIndex, content) {

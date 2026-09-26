@@ -70,7 +70,7 @@ function evaluateResultSet(governance, claimIds, context = {}) {
 
   for (const claimId of allowedClaimIds) {
     const claim = governance.claims.claims[claimId];
-    const mandatoryCompanions = Array.isArray(claim.mandatory_companions) ? claim.mandatory_companions : [];
+    const mandatoryCompanions = claim.normative_level === 'MANDATORY' ? [] : (Array.isArray(claim.mandatory_companions) ? claim.mandatory_companions : []);
     const missingCompanion = mandatoryCompanions.find((companionId) => !allowedClaimIds.includes(companionId));
 
     if (missingCompanion) {

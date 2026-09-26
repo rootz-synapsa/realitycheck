@@ -11,6 +11,35 @@ const { loadGovernance } = require('./governance-loader.cjs');
 const gate = createClaimGate(path.resolve(__dirname, '..'));
 const POLICY_VERSION = 'rc-gov-0.2';
 
+function withGovernanceFixture(mutator, assertion) {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'realitycheck-governance-'));
+  const filesToCopy = [
+    'RC-WC-001-REVISED.md',
+    'governance/principles.md',
+    'governance/claims.yaml',
+    'governance/composition.yaml',
+    'governance/lexicon.th.yaml',
+    'governance/lexicon.en.yaml',
+    'governance/cam.schema.json',
+    'governance/CHANGELOG.md',
+  ];
+
+  try {
+    for (const relativePath of filesToCopy) {
+      const sourcePath = path.resolve(__dirname, '..', relativePath);
+      const targetPath = path.join(fixtureRoot, relativePath);
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+
+    mutator(fixtureRoot);
+    assertion(fixtureRoot);
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+}
+
+
 test('unknown claim ID blocks by default', () => {
   const decision = gate.evaluateClaim('CLAIM-NOT-REGISTERED');
 
@@ -175,37 +204,33 @@ test('analysis failure cannot become no-signal, authentic, or safe', () => {
 });
 
 test('governance loader fails closed when copied policy files drift out of sync', () => {
-  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'realitycheck-governance-'));
-  const governanceRoot = path.join(fixtureRoot, 'governance');
-  fs.mkdirSync(governanceRoot, { recursive: true });
-
-  const filesToCopy = [
-    'RC-WC-001-REVISED.md',
-    'governance/principles.md',
-    'governance/claims.yaml',
-    'governance/composition.yaml',
-    'governance/lexicon.th.yaml',
-    'governance/lexicon.en.yaml',
-    'governance/cam.schema.json',
-    'governance/CHANGELOG.md',
-  ];
-
-  try {
-    for (const relativePath of filesToCopy) {
-      const sourcePath = path.resolve(__dirname, '..', relativePath);
-      const targetPath = path.join(fixtureRoot, relativePath);
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-      fs.copyFileSync(sourcePath, targetPath);
-    }
-
+  withGovernanceFixture((fixtureRoot) => {
     const compositionPath = path.join(fixtureRoot, 'governance/composition.yaml');
     const composition = fs.readFileSync(compositionPath, 'utf8').replace('policy_version: rc-gov-0.2', 'policy_version: rc-gov-9.9');
     fs.writeFileSync(compositionPath, composition);
-
+  }, (fixtureRoot) => {
     assert.throws(() => loadGovernance(fixtureRoot), /policy_version must match/);
-  } finally {
-    fs.rmSync(fixtureRoot, { recursive: true, force: true });
-  }
+  });
+});
+
+test('governance loader fails closed on invalid claim registry structure', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace('normative_level: ALLOW', 'normative_level: INVALID');
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    assert.throws(() => loadGovernance(fixtureRoot), /unsupported normative_level/);
+  });
+});
+
+test('governance loader fails closed on malformed lexicon payloads', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const lexiconPath = path.join(fixtureRoot, 'governance/lexicon.en.yaml');
+    const lexicon = fs.readFileSync(lexiconPath, 'utf8').replace('hard_block_terms:', 'hard_block_terms: invalid');
+    fs.writeFileSync(lexiconPath, lexicon);
+  }, (fixtureRoot) => {
+    assert.throws(() => loadGovernance(fixtureRoot), /hard_block_terms and hedge_block_terms arrays/);
+  });
 });
 
 test('every gate decision exposes structured audit fields including policy_version', () => {

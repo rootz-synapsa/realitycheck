@@ -116,6 +116,18 @@ function validateLexiconDocument(document, claimsDocument, relativePath) {
   if (document.policy_version !== claimsDocument.policy_version) {
     throw new Error(`${relativePath} policy_version must match governance/claims.yaml`);
   }
+
+  if (typeof document.scope !== 'string' || document.scope.length === 0) {
+    throw new Error(`${relativePath} must define a scope`);
+  }
+
+  if (!Array.isArray(document.hard_block_terms) || !Array.isArray(document.hedge_block_terms)) {
+    throw new Error(`${relativePath} must define hard_block_terms and hedge_block_terms arrays`);
+  }
+
+  if ('notes' in document && !Array.isArray(document.notes)) {
+    throw new Error(`${relativePath} notes must be an array when present`);
+  }
 }
 
 function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
