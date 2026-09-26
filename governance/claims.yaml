@@ -1,0 +1,7 @@
+version: 1
+claims:
+  RC.CLAIM.SUSPICIOUS_TRANSFER_REQUEST:
+    title: Suspicious transfer request indicators are supported by evidence
+    required_evidence:
+      - message_text
+      - risk_indicators

@@ -1,0 +1,6 @@
+version: 1
+lexicon:
+  UNKNOWN_CLAIM_ID: Unknown claim ID.
+  MISSING_REQUIRED_EVIDENCE: Missing required evidence.
+  REQUIRED_EVIDENCE_PRESENT: Required evidence present.
+  INSUFFICIENT_SUPPORTED_EVIDENCE: There is not enough supported evidence to produce an analytical conclusion.
