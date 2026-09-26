@@ -1,0 +1,29 @@
+policy_version: rc-gov-0.2
+scope: GENERATED_ANALYTICAL_PROSE_ONLY
+
+hard_block_terms:
+  - "ของจริง"
+  - "ของแท้"
+  - "ไม่ใช่ของปลอม"
+  - "เป็นของปลอม"
+  - "ตัดต่อแน่นอน"
+  - "มิจฉาชีพ"
+  - "คนร้าย"
+  - "โกงแน่"
+  - "หลอกแน่นอน"
+  - "ปลอดภัยแล้ว"
+  - "ไม่ต้องกังวล"
+  - "การันตี"
+  - "พิสูจน์แล้วว่า"
+  - "ใช้เป็นหลักฐานได้"
+
+hedge_block_terms:
+  - "น่าจะปลอม"
+  - "คงปลอม"
+  - "ดูไม่น่าไว้ใจ"
+  - "เหมือนจะโดนหลอก"
+  - "สงสัยว่าจะ"
+
+notes:
+  - "Verbatim quotations extracted from user media are DATA, not RealityCheck claims, and must be handled separately."
+  - "Thai text matching must not rely only on whitespace word boundaries."
