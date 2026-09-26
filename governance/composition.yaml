@@ -1,0 +1,7 @@
+version: 1
+composition:
+  strategy: first-allow-otherwise-safe-fallback
+  fallback:
+    decision: SAFE_FALLBACK
+    reason: INSUFFICIENT_SUPPORTED_EVIDENCE
+    message: There is not enough supported evidence to produce an analytical conclusion.

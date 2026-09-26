@@ -1,0 +1,6 @@
+version: 1
+lexicon:
+  UNKNOWN_CLAIM_ID: ไม่พบรหัสข้ออ้างที่รองรับ
+  MISSING_REQUIRED_EVIDENCE: หลักฐานที่จำเป็นไม่ครบถ้วน
+  REQUIRED_EVIDENCE_PRESENT: มีหลักฐานที่จำเป็นครบถ้วน
+  INSUFFICIENT_SUPPORTED_EVIDENCE: มีหลักฐานที่รองรับไม่เพียงพอสำหรับสรุปผลเชิงวิเคราะห์
