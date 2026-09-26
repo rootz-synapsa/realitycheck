@@ -128,6 +128,10 @@ function parseNode(lines, indent, startIndex) {
   return parseMapping(lines, indent, index);
 }
 
+function looksLikeInlineMappingEntry(source) {
+  return /^[A-Za-z0-9_-]+:(?:\s.*)?$/.test(source);
+}
+
 function parseSequence(lines, indent, startIndex) {
   const sequence = [];
   let index = startIndex;
@@ -160,7 +164,7 @@ function parseSequence(lines, indent, startIndex) {
       continue;
     }
 
-    if (content.includes(':')) {
+    if (looksLikeInlineMappingEntry(content)) {
       const [key, rawValue] = splitKeyValue(content);
       const item = {};
       if (rawValue === '') {

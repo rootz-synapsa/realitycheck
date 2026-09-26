@@ -117,6 +117,23 @@ test('safe fallback uses only claim IDs declared in composition.yaml', () => {
   });
 });
 
+test('analysis failure claim is renderable when its companions are present', () => {
+  const result = gate.evaluateResultSet([
+    'CLAIM-FAIL-ANALYSIS',
+    'CLAIM-LIMIT-NOT-LEGAL',
+    'CLAIM-META-RESULT-PERISHABLE',
+  ], {
+    evidence_state: 'ANALYSIS_FAILED',
+  });
+
+  assert.equal(result.decision, 'ALLOW');
+  assert.deepEqual(result.claim_ids, [
+    'CLAIM-FAIL-ANALYSIS',
+    'CLAIM-LIMIT-NOT-LEGAL',
+    'CLAIM-META-RESULT-PERISHABLE',
+  ]);
+});
+
 test('analysis failure cannot become no-signal, authentic, or safe', () => {
   const result = gate.evaluateResultSet(['CLAIM-X-SAFE', 'CLAIM-PROV-ABSENT'], {
     evidence_state: 'ANALYSIS_FAILED',

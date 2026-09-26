@@ -25,6 +25,16 @@ function parsePolicyVersionFromMarkdown(markdown, relativePath) {
   return match[1].trim();
 }
 
+function parseRequiredMetadata(markdown, fieldName, relativePath) {
+  const expression = new RegExp(`^${fieldName}:\\s*(.+)$`, 'm');
+  const match = markdown.match(expression);
+  if (!match) {
+    throw new Error(`Missing ${fieldName} in ${relativePath}`);
+  }
+
+  return match[1].trim();
+}
+
 function validateClaimsDocument(claimsDocument) {
   if (!claimsDocument || typeof claimsDocument !== 'object' || Array.isArray(claimsDocument)) {
     throw new Error('governance/claims.yaml must parse to an object');
@@ -98,6 +108,7 @@ function validateLexiconDocument(document, claimsDocument, relativePath) {
 }
 
 function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
+  const workContract = readFile(rootDirectory, 'RC-WC-001-REVISED.md');
   const principles = readFile(rootDirectory, 'governance/principles.md');
   const changelog = readFile(rootDirectory, 'governance/CHANGELOG.md');
   const claims = parseYaml(readFile(rootDirectory, 'governance/claims.yaml'));
@@ -111,6 +122,13 @@ function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
   validateLexiconDocument(lexiconTh, claims, 'governance/lexicon.th.yaml');
   validateLexiconDocument(lexiconEn, claims, 'governance/lexicon.en.yaml');
 
+  const workContractStatus = parseRequiredMetadata(workContract, 'Status', 'RC-WC-001-REVISED.md');
+  if (workContractStatus !== 'AUTHORIZED FOR IMPLEMENTATION') {
+    throw new Error('RC-WC-001-REVISED.md must remain authorized for implementation');
+  }
+
+  parseRequiredMetadata(workContract, 'Policy source', 'RC-WC-001-REVISED.md');
+
   const principlesPolicyVersion = parsePolicyVersionFromMarkdown(principles, 'governance/principles.md');
   if (principlesPolicyVersion !== claims.policy_version) {
     throw new Error('governance/principles.md policy_version must match governance/claims.yaml');
@@ -118,6 +136,7 @@ function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
 
   return {
     policyVersion: claims.policy_version,
+    workContract,
     principles,
     changelog,
     camSchema,
