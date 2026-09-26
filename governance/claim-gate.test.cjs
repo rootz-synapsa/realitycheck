@@ -338,3 +338,23 @@ test('every gate decision exposes structured audit fields including policy_versi
     assert.equal(decision.policy_version, POLICY_VERSION);
   }
 });
+
+test('all governance principle references in claims resolve to defined principles', () => {
+  assert.doesNotThrow(() => loadGovernance(path.resolve(__dirname, '..')));
+});
+
+test('governance loader fails closed on undefined GP references', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace(
+      '      - GP-001',
+      '      - GP-999'
+    );
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    assert.throws(
+      () => loadGovernance(fixtureRoot),
+      /references undefined governance principle GP-999/
+    );
+  });
+});

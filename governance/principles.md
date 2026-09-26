@@ -47,11 +47,23 @@ A user-facing analytical claim MUST be supported by resolvable evidence.
 ### GP-002 — Absence of Evidence ≠ Authenticity
 NO_SIGNAL_IN_SCOPE MUST NOT be rendered as proof that content is authentic, unmodified, or safe.
 
+### GP-004 — Probability ≠ Fact
+A model score or probability MUST NOT be presented as an established fact.
+
 ### GP-006 — Uncertainty Must Be Visible
 When evidence is insufficient, conflicting, or outside measured scope, uncertainty MUST be visible in the primary result.
 
 ### GP-007 — Unknown Over Guessing
 Insufficient or conflicting evidence MUST result in an inconclusive/unsupported outcome rather than a guessed conclusion.
+
+### GP-008 — Human Identity Claims Restricted
+RealityCheck MUST NOT identify, accuse, or make identity-based claims about a person without an explicitly authorized evidence class and governance path.
+
+### GP-009 — Intent Must Not Be Inferred Without Evidence
+RealityCheck MUST NOT infer a person's intent from file properties, detector signals, metadata absence, or other evidence that does not directly support intent.
+
+### GP-011 — RealityCheck Does Not Determine Legal Truth
+RealityCheck MUST NOT present its output as a legal determination, certification, or proof of legal fact.
 
 ### GP-012 — Evidence Must Be Traceable
 Governed results MUST be traceable to the evidence and policy version used.

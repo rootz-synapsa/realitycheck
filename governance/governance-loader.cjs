@@ -210,6 +210,36 @@ function validateLexiconDocument(document, claimsDocument, relativePath) {
   }
 }
 
+
+function validateGpReferences(principlesMarkdown, claimsDocument) {
+  const definedGpIds = new Set(
+    [...principlesMarkdown.matchAll(/^###\s+(GP-\d{3})\b/gm)]
+      .map((match) => match[1])
+  );
+
+  for (const [claimId, claim] of Object.entries(claimsDocument.claims)) {
+    const referencedGpIds = new Set();
+
+    if (Array.isArray(claim.gp_refs)) {
+      for (const gpId of claim.gp_refs) {
+        referencedGpIds.add(gpId);
+      }
+    }
+
+    if (typeof claim.reason === 'string') {
+      for (const match of claim.reason.matchAll(/\bGP-\d{3}\b/g)) {
+        referencedGpIds.add(match[0]);
+      }
+    }
+
+    for (const gpId of referencedGpIds) {
+      if (!definedGpIds.has(gpId)) {
+        throw new Error(`Claim ${claimId} references undefined governance principle ${gpId}`);
+      }
+    }
+  }
+}
+
 function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
   const workContract = readFile(rootDirectory, 'RC-WC-001-REVISED.md');
   const principles = readFile(rootDirectory, 'governance/principles.md');
@@ -222,6 +252,7 @@ function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
 
   validateCamSchemaShape(camSchema);
   validateClaimsDocument(claims, camSchema);
+  validateGpReferences(principles, claims);
   validateCompanionReferences(claims);
   validateCompositionDocument(composition, claims);
   validateLexiconDocument(lexiconTh, claims, 'governance/lexicon.th.yaml');
