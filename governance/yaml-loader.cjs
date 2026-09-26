@@ -264,7 +264,7 @@ function parseMappingEntries(lines, indent, startIndex, target) {
     const [key, rawValue] = splitKeyValue(trimmed);
     if (rawValue === '') {
       const [value, nextIndex] = parseNode(lines, indent + 2, index + 1);
-      target[key] = value;
+      target[key] = value === undefined ? null : value;
       index = nextIndex;
       continue;
     }

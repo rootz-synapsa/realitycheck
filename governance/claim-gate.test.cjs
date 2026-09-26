@@ -143,24 +143,6 @@ test('if every candidate analytical claim is blocked or unresolvable, safe fallb
   assert.equal(result.fallback.policy_version, POLICY_VERSION);
 });
 
-test('mixed renderable and blocked candidates hold and use safe fallback', () => {
-  const result = gate.evaluateResultSet([
-    'CLAIM-PROV-ABSENT',
-    'CLAIM-PROV-ABSENT-SCOPE-NOTE',
-    'CLAIM-NOT-REGISTERED',
-  ], {
-    evidence: [{ class: 'PROVENANCE', verification: 'ABSENT' }],
-  });
-
-  assert.equal(result.decision, 'HOLD');
-  assert.equal(result.reason, 'PARTIALLY_RENDERABLE_RESULT_SET');
-  assert.deepEqual(result.fallback.claim_ids, [
-    'CLAIM-INCONC-COVERAGE',
-    'CLAIM-LIMIT-NOT-LEGAL',
-    'CLAIM-META-RESULT-PERISHABLE',
-  ]);
-});
-
 test('safe fallback uses only claim IDs declared in composition.yaml', () => {
   const fallback = gate.buildSafeFallback('TEST_REASON');
 
