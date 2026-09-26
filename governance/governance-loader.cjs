@@ -4,14 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { parseYaml } = require('./yaml-loader.cjs');
 
-const ALLOWED_NORMATIVE_LEVELS = new Set([
-  'ALLOW',
-  'ALLOW_WITH_WARNING',
-  'MANDATORY',
-  'CONDITIONAL',
-  'PERMANENTLY_BLOCKED',
-]);
-
 function readFile(rootDirectory, relativePath) {
   return fs.readFileSync(path.join(rootDirectory, relativePath), 'utf8');
 }
@@ -35,9 +27,15 @@ function parseRequiredMetadata(markdown, fieldName, relativePath) {
   return match[1].trim();
 }
 
-function validateClaimsDocument(claimsDocument) {
+function validateClaimsDocument(claimsDocument, camSchema) {
   if (!claimsDocument || typeof claimsDocument !== 'object' || Array.isArray(claimsDocument)) {
     throw new Error('governance/claims.yaml must parse to an object');
+  }
+
+  for (const requiredField of camSchema.required || []) {
+    if (!(requiredField in claimsDocument)) {
+      throw new Error(`governance/claims.yaml is missing required field ${requiredField}`);
+    }
   }
 
   if (typeof claimsDocument.policy_version !== 'string' || claimsDocument.policy_version.length === 0) {
@@ -53,16 +51,25 @@ function validateClaimsDocument(claimsDocument) {
     throw new Error('governance/claims.yaml must define at least one claim');
   }
 
+  const claimSchema = camSchema.properties.claims.additionalProperties;
+  const allowedNormativeLevels = new Set(claimSchema.properties.normative_level.enum);
+
   for (const [claimId, claim] of entries) {
     if (!claim || typeof claim !== 'object' || Array.isArray(claim)) {
       throw new Error(`Claim ${claimId} must be an object`);
+    }
+
+    for (const requiredField of claimSchema.required || []) {
+      if (!(requiredField in claim)) {
+        throw new Error(`Claim ${claimId} is missing required field ${requiredField}`);
+      }
     }
 
     if (typeof claim.family !== 'string' || claim.family.length === 0) {
       throw new Error(`Claim ${claimId} must define a family`);
     }
 
-    if (!ALLOWED_NORMATIVE_LEVELS.has(claim.normative_level)) {
+    if (!allowedNormativeLevels.has(claim.normative_level)) {
       throw new Error(`Claim ${claimId} has unsupported normative_level ${claim.normative_level}`);
     }
   }
@@ -117,7 +124,7 @@ function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
   const lexiconEn = parseYaml(readFile(rootDirectory, 'governance/lexicon.en.yaml'));
   const camSchema = JSON.parse(readFile(rootDirectory, 'governance/cam.schema.json'));
 
-  validateClaimsDocument(claims);
+  validateClaimsDocument(claims, camSchema);
   validateCompositionDocument(composition, claims);
   validateLexiconDocument(lexiconTh, claims, 'governance/lexicon.th.yaml');
   validateLexiconDocument(lexiconEn, claims, 'governance/lexicon.en.yaml');

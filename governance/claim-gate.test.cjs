@@ -2,8 +2,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { createClaimGate } = require('./claim-gate.cjs');
+const { loadGovernance } = require('./governance-loader.cjs');
 
 const gate = createClaimGate(path.resolve(__dirname, '..'));
 const POLICY_VERSION = 'rc-gov-0.2';
@@ -156,6 +159,40 @@ test('analysis failure cannot become no-signal, authentic, or safe', () => {
       policy_version: POLICY_VERSION,
     },
   ]);
+});
+
+test('governance loader fails closed when copied policy files drift out of sync', () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'realitycheck-governance-'));
+  const governanceRoot = path.join(fixtureRoot, 'governance');
+  fs.mkdirSync(governanceRoot, { recursive: true });
+
+  const filesToCopy = [
+    'RC-WC-001-REVISED.md',
+    'governance/principles.md',
+    'governance/claims.yaml',
+    'governance/composition.yaml',
+    'governance/lexicon.th.yaml',
+    'governance/lexicon.en.yaml',
+    'governance/cam.schema.json',
+    'governance/CHANGELOG.md',
+  ];
+
+  try {
+    for (const relativePath of filesToCopy) {
+      const sourcePath = path.resolve(__dirname, '..', relativePath);
+      const targetPath = path.join(fixtureRoot, relativePath);
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+
+    const compositionPath = path.join(fixtureRoot, 'governance/composition.yaml');
+    const composition = fs.readFileSync(compositionPath, 'utf8').replace('policy_version: rc-gov-0.2', 'policy_version: rc-gov-9.9');
+    fs.writeFileSync(compositionPath, composition);
+
+    assert.throws(() => loadGovernance(fixtureRoot), /policy_version must match/);
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
 });
 
 test('every gate decision exposes structured audit fields including policy_version', () => {
