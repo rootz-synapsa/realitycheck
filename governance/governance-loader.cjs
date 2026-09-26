@@ -31,6 +31,44 @@ function validateCamSchemaShape(camSchema) {
   }
 }
 
+function assertArrayOfStrings(value, errorMessage) {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new Error(errorMessage);
+  }
+}
+
+function validateCompanionReferences(claimsDocument) {
+  const visiting = new Set();
+  const visited = new Set();
+
+  function visit(claimId) {
+    if (visited.has(claimId)) {
+      return;
+    }
+    if (visiting.has(claimId)) {
+      throw new Error(`Companion claim cycle detected at ${claimId}`);
+    }
+
+    visiting.add(claimId);
+    const claim = claimsDocument.claims[claimId];
+    const companions = Array.isArray(claim.mandatory_companions) ? claim.mandatory_companions : [];
+
+    for (const companionId of companions) {
+      if (!claimsDocument.claims[companionId]) {
+        throw new Error(`Claim ${claimId} references unknown mandatory companion ${companionId}`);
+      }
+      visit(companionId);
+    }
+
+    visiting.delete(claimId);
+    visited.add(claimId);
+  }
+
+  for (const claimId of Object.keys(claimsDocument.claims)) {
+    visit(claimId);
+  }
+}
+
 function validateClaimsDocument(claimsDocument, camSchema) {
   if (!claimsDocument || typeof claimsDocument !== 'object' || Array.isArray(claimsDocument)) {
     throw new Error('governance/claims.yaml must parse to an object');
@@ -39,6 +77,14 @@ function validateClaimsDocument(claimsDocument, camSchema) {
   for (const requiredField of camSchema.required || []) {
     if (!(requiredField in claimsDocument)) {
       throw new Error(`governance/claims.yaml is missing required field ${requiredField}`);
+    }
+  }
+
+  if (camSchema.additionalProperties === false) {
+    for (const fieldName of Object.keys(claimsDocument)) {
+      if (!(fieldName in camSchema.properties)) {
+        throw new Error(`governance/claims.yaml contains unsupported top-level field ${fieldName}`);
+      }
     }
   }
 
@@ -57,6 +103,7 @@ function validateClaimsDocument(claimsDocument, camSchema) {
 
   const claimSchema = camSchema.properties.claims.additionalProperties;
   const allowedNormativeLevels = new Set(claimSchema.properties.normative_level.enum);
+  const allowedClaimFields = new Set(Object.keys(claimSchema.properties));
 
   for (const [claimId, claim] of entries) {
     if (!claim || typeof claim !== 'object' || Array.isArray(claim)) {
@@ -69,12 +116,42 @@ function validateClaimsDocument(claimsDocument, camSchema) {
       }
     }
 
+    for (const fieldName of Object.keys(claim)) {
+      if (!allowedClaimFields.has(fieldName) && claimSchema.additionalProperties === false) {
+        throw new Error(`Claim ${claimId} contains unsupported field ${fieldName}`);
+      }
+    }
+
     if (typeof claim.family !== 'string' || claim.family.length === 0) {
       throw new Error(`Claim ${claimId} must define a family`);
     }
 
     if (!allowedNormativeLevels.has(claim.normative_level)) {
       throw new Error(`Claim ${claimId} has unsupported normative_level ${claim.normative_level}`);
+    }
+
+    if ('requires_evidence' in claim && !Array.isArray(claim.requires_evidence)) {
+      throw new Error(`Claim ${claimId} requires_evidence must be an array`);
+    }
+
+    if ('requires_state' in claim && (!claim.requires_state || typeof claim.requires_state !== 'object' || Array.isArray(claim.requires_state))) {
+      throw new Error(`Claim ${claimId} requires_state must be an object`);
+    }
+
+    if ('template' in claim && (!claim.template || typeof claim.template !== 'object' || Array.isArray(claim.template))) {
+      throw new Error(`Claim ${claimId} template must be an object`);
+    }
+
+    if ('mandatory_companions' in claim) {
+      assertArrayOfStrings(claim.mandatory_companions, `Claim ${claimId} mandatory_companions must be an array of strings`);
+    }
+
+    if ('gp_refs' in claim) {
+      assertArrayOfStrings(claim.gp_refs, `Claim ${claimId} gp_refs must be an array of strings`);
+    }
+
+    if ('reason' in claim && typeof claim.reason !== 'string') {
+      throw new Error(`Claim ${claimId} reason must be a string`);
     }
   }
 }
@@ -142,6 +219,7 @@ function loadGovernance(rootDirectory = path.resolve(__dirname, '..')) {
 
   validateCamSchemaShape(camSchema);
   validateClaimsDocument(claims, camSchema);
+  validateCompanionReferences(claims);
   validateCompositionDocument(composition, claims);
   validateLexiconDocument(lexiconTh, claims, 'governance/lexicon.th.yaml');
   validateLexiconDocument(lexiconEn, claims, 'governance/lexicon.en.yaml');

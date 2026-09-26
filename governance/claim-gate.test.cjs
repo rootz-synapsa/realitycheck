@@ -203,6 +203,32 @@ test('analysis failure cannot become no-signal, authentic, or safe', () => {
   ]);
 });
 
+test('mandatory claims still enforce declared companions', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace(
+      `    gp_refs:
+      - GP-002
+      - GP-014
+`,
+      `    mandatory_companions:
+      - CLAIM-LIMIT-NOT-LEGAL
+    gp_refs:
+      - GP-002
+      - GP-014
+`
+    );
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    const fixtureGate = createClaimGate(fixtureRoot);
+    const result = fixtureGate.evaluateResultSet(['CLAIM-PROV-ABSENT-SCOPE-NOTE']);
+
+    assert.equal(result.decision, 'HOLD');
+    assert.equal(result.reason, 'MISSING_MANDATORY_COMPANION');
+    assert.equal(result.missing_companion, 'CLAIM-LIMIT-NOT-LEGAL');
+  });
+});
+
 test('governance loader fails closed when copied policy files drift out of sync', () => {
   withGovernanceFixture((fixtureRoot) => {
     const compositionPath = path.join(fixtureRoot, 'governance/composition.yaml');
