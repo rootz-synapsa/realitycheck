@@ -24,7 +24,10 @@ function findUnquotedColonIndex(source) {
     }
 
     if (character === ':' && quote === null) {
-      return index;
+      const nextCharacter = source[index + 1];
+      if (nextCharacter === undefined || /\s/.test(nextCharacter)) {
+        return index;
+      }
     }
   }
 

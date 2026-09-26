@@ -8,6 +8,10 @@ function readFile(rootDirectory, relativePath) {
   return fs.readFileSync(path.join(rootDirectory, relativePath), 'utf8');
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function parseRequiredMetadata(markdown, fieldName, relativePath) {
   const expression = new RegExp(`^${fieldName}:\\s*(.+)$`, 'm');
   const match = markdown.match(expression);
