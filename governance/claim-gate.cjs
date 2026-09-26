@@ -93,6 +93,16 @@ function evaluateResultSet(governance, claimIds, context = {}) {
     };
   }
 
+  if (allowedClaimIds.length !== decisions.length) {
+    return {
+      decision: 'HOLD',
+      reason: 'PARTIALLY_RENDERABLE_RESULT_SET',
+      gate_decisions: decisions,
+      fallback: buildSafeFallback(governance, 'PARTIALLY_RENDERABLE_RESULT_SET'),
+      policy_version: governance.policyVersion,
+    };
+  }
+
   for (const claimId of allowedClaimIds) {
     const missingCompanion = findMissingCompanion(governance, allowedClaimIdSet, claimId);
 

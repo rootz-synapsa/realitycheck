@@ -46,6 +46,10 @@ test('yaml loader preserves nested inline arrays', () => {
   assert.deepEqual(document, { value: [[1, 2], [3, 4]] });
 });
 
+test('yaml loader rejects trailing top-level content', () => {
+  assert.throws(() => parseYaml('value: one\n- extra\n'), /Unexpected trailing YAML content/);
+});
+
 test('unknown claim ID blocks by default', () => {
   const decision = gate.evaluateClaim('CLAIM-NOT-REGISTERED');
 
@@ -137,6 +141,24 @@ test('if every candidate analytical claim is blocked or unresolvable, safe fallb
   ]);
   assert.equal(result.fallback.evidence_state, 'INCONCLUSIVE');
   assert.equal(result.fallback.policy_version, POLICY_VERSION);
+});
+
+test('mixed renderable and blocked candidates hold and use safe fallback', () => {
+  const result = gate.evaluateResultSet([
+    'CLAIM-PROV-ABSENT',
+    'CLAIM-PROV-ABSENT-SCOPE-NOTE',
+    'CLAIM-NOT-REGISTERED',
+  ], {
+    evidence: [{ class: 'PROVENANCE', verification: 'ABSENT' }],
+  });
+
+  assert.equal(result.decision, 'HOLD');
+  assert.equal(result.reason, 'PARTIALLY_RENDERABLE_RESULT_SET');
+  assert.deepEqual(result.fallback.claim_ids, [
+    'CLAIM-INCONC-COVERAGE',
+    'CLAIM-LIMIT-NOT-LEGAL',
+    'CLAIM-META-RESULT-PERISHABLE',
+  ]);
 });
 
 test('safe fallback uses only claim IDs declared in composition.yaml', () => {
@@ -289,10 +311,10 @@ test('governance loader fails closed on invalid claim registry structure', () =>
 test('governance loader fails closed on malformed lexicon payloads', () => {
   withGovernanceFixture((fixtureRoot) => {
     const lexiconPath = path.join(fixtureRoot, 'governance/lexicon.en.yaml');
-    const lexicon = fs.readFileSync(lexiconPath, 'utf8').replace('hard_block_terms:', 'hard_block_terms: invalid');
+    const lexicon = fs.readFileSync(lexiconPath, 'utf8').replace('  - "definitely authentic"', '  - 123');
     fs.writeFileSync(lexiconPath, lexicon);
   }, (fixtureRoot) => {
-    assert.throws(() => loadGovernance(fixtureRoot), /hard_block_terms and hedge_block_terms arrays/);
+    assert.throws(() => loadGovernance(fixtureRoot), /hard_block_terms must be an array of strings/);
   });
 });
 

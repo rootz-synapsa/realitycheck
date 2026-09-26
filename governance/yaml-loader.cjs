@@ -278,7 +278,13 @@ function parseMappingEntries(lines, indent, startIndex, target) {
 
 function parseYaml(source) {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
-  const [document] = parseNode(lines, 0, 0);
+  const [document, nextIndex] = parseNode(lines, 0, 0);
+  const remainingIndex = skipIgnorable(lines, nextIndex);
+
+  if (remainingIndex < lines.length) {
+    throw new Error(`Unexpected trailing YAML content at line ${remainingIndex + 1}`);
+  }
+
   return document;
 }
 

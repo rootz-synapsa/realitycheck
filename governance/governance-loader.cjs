@@ -198,12 +198,11 @@ function validateLexiconDocument(document, claimsDocument, relativePath) {
     throw new Error(`${relativePath} must define a scope`);
   }
 
-  if (!Array.isArray(document.hard_block_terms) || !Array.isArray(document.hedge_block_terms)) {
-    throw new Error(`${relativePath} must define hard_block_terms and hedge_block_terms arrays`);
-  }
+  assertArrayOfStrings(document.hard_block_terms, `${relativePath} hard_block_terms must be an array of strings`);
+  assertArrayOfStrings(document.hedge_block_terms, `${relativePath} hedge_block_terms must be an array of strings`);
 
-  if ('notes' in document && !Array.isArray(document.notes)) {
-    throw new Error(`${relativePath} notes must be an array when present`);
+  if ('notes' in document) {
+    assertArrayOfStrings(document.notes, `${relativePath} notes must be an array of strings when present`);
   }
 }
 
