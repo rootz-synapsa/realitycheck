@@ -1,0 +1,20 @@
+policy_version: rc-gov-0.2
+scope: GENERATED_ANALYTICAL_PROSE_ONLY
+
+hard_block_terms:
+  - "definitely authentic"
+  - "definitely fake"
+  - "is a scammer"
+  - "is safe"
+  - "guaranteed safe"
+  - "proven real"
+  - "legal proof"
+
+hedge_block_terms:
+  - "probably fake"
+  - "looks fake"
+  - "seems like a scammer"
+  - "probably safe"
+
+notes:
+  - "Verbatim quotations extracted from user media are DATA, not RealityCheck claims, and must be handled separately."

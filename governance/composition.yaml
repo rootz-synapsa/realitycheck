@@ -1,0 +1,40 @@
+policy_version: rc-gov-0.2
+
+render_order:
+  - STATE_HEADER
+  - SIGNAL
+  - PROVENANCE
+  - INCONCLUSIVE
+  - FAILURE
+  - RISK
+  - ACTION
+  - LIMITATION
+  - META
+
+rules:
+  - id: CR-01
+    description: "Material limitations stay in the same result block and may not be hidden behind a secondary page."
+    gp_refs: [GP-014]
+
+  - id: CR-02
+    description: "If required companion claims are missing, HOLD the analytical result and use the safe fallback."
+    gp_refs: [GP-006, GP-014, GP-028]
+
+  - id: CR-03
+    description: "Every state rendered to the user must include a textual label; color alone is insufficient."
+    gp_refs: [GP-026]
+
+  - id: CR-04
+    description: "Analytical conclusions may only be rendered from registered Claim IDs."
+    gp_refs: [GP-001, GP-028]
+
+  - id: CR-05
+    description: "If every candidate analytical claim is BLOCKED or cannot be resolved, render the safe fallback."
+    gp_refs: [GP-007, GP-015, GP-028]
+
+safe_fallback:
+  evidence_state: INCONCLUSIVE
+  claim_ids:
+    - CLAIM-INCONC-COVERAGE
+    - CLAIM-LIMIT-NOT-LEGAL
+    - CLAIM-META-RESULT-PERISHABLE

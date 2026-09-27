@@ -1,0 +1,360 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createClaimGate } = require('./claim-gate.cjs');
+const { loadGovernance } = require('./governance-loader.cjs');
+const { parseYaml } = require('./yaml-loader.cjs');
+
+const gate = createClaimGate(path.resolve(__dirname, '..'));
+const POLICY_VERSION = 'rc-gov-0.2';
+
+function withGovernanceFixture(mutator, assertion) {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'realitycheck-governance-'));
+  const filesToCopy = [
+    'RC-WC-001-REVISED.md',
+    'governance/principles.md',
+    'governance/claims.yaml',
+    'governance/composition.yaml',
+    'governance/lexicon.th.yaml',
+    'governance/lexicon.en.yaml',
+    'governance/cam.schema.json',
+    'governance/CHANGELOG.md',
+  ];
+
+  try {
+    for (const relativePath of filesToCopy) {
+      const sourcePath = path.resolve(__dirname, '..', relativePath);
+      const targetPath = path.join(fixtureRoot, relativePath);
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+
+    mutator(fixtureRoot);
+    assertion(fixtureRoot);
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+}
+
+
+test('yaml loader preserves nested inline arrays', () => {
+  const document = parseYaml('value: [[1, 2], [3, 4]]\n');
+  assert.deepEqual(document, { value: [[1, 2], [3, 4]] });
+});
+
+test('yaml loader rejects trailing top-level content', () => {
+  assert.throws(() => parseYaml('value: one\n- extra\n'), /Unexpected trailing YAML content/);
+});
+
+test('yaml loader rejects empty documents', () => {
+  assert.throws(() => parseYaml('\n'), /must not be empty/);
+});
+
+test('unknown claim ID blocks by default', () => {
+  const decision = gate.evaluateClaim('CLAIM-NOT-REGISTERED');
+
+  assert.deepEqual(decision, {
+    claim_id: 'CLAIM-NOT-REGISTERED',
+    decision: 'BLOCK',
+    reason: 'UNKNOWN_CLAIM_ID',
+    policy_version: POLICY_VERSION,
+  });
+});
+
+test('permanently blocked claim ID blocks', () => {
+  const decision = gate.evaluateClaim('CLAIM-X-SAFE');
+
+  assert.deepEqual(decision, {
+    claim_id: 'CLAIM-X-SAFE',
+    decision: 'BLOCK',
+    reason: 'PERMANENTLY_BLOCKED',
+    policy_version: POLICY_VERSION,
+  });
+});
+
+test('registered claim with unresolved required evidence blocks', () => {
+  const decision = gate.evaluateClaim('CLAIM-PROV-ABSENT', {
+    evidence: [{ class: 'PROVENANCE', verification: 'PRESENT' }],
+  });
+
+  assert.deepEqual(decision, {
+    claim_id: 'CLAIM-PROV-ABSENT',
+    decision: 'BLOCK',
+    reason: 'UNRESOLVED_REQUIRED_EVIDENCE',
+    policy_version: POLICY_VERSION,
+  });
+});
+
+test('registered claim with satisfied preconditions allows', () => {
+  const decision = gate.evaluateClaim('CLAIM-PROV-ABSENT', {
+    evidence: [{ class: 'PROVENANCE', verification: 'ABSENT' }],
+  });
+
+  assert.deepEqual(decision, {
+    claim_id: 'CLAIM-PROV-ABSENT',
+    decision: 'ALLOW',
+    reason: 'PRECONDITIONS_SATISFIED',
+    policy_version: POLICY_VERSION,
+  });
+});
+
+test('missing mandatory companion holds result set and invokes safe fallback', () => {
+  const result = gate.evaluateResultSet(['CLAIM-PROV-ABSENT'], {
+    evidence: [{ class: 'PROVENANCE', verification: 'ABSENT' }],
+  });
+
+  assert.equal(result.decision, 'HOLD');
+  assert.equal(result.reason, 'MISSING_MANDATORY_COMPANION');
+  assert.equal(result.missing_companion, 'CLAIM-PROV-ABSENT-SCOPE-NOTE');
+  assert.deepEqual(result.fallback, {
+    decision: 'SAFE_FALLBACK',
+    reason: 'MISSING_MANDATORY_COMPANION',
+    evidence_state: 'INCONCLUSIVE',
+    claim_ids: [
+      'CLAIM-INCONC-COVERAGE',
+      'CLAIM-LIMIT-NOT-LEGAL',
+      'CLAIM-META-RESULT-PERISHABLE',
+    ],
+    policy_version: POLICY_VERSION,
+  });
+  assert.deepEqual(result.gate_decisions, [
+    {
+      claim_id: 'CLAIM-PROV-ABSENT',
+      decision: 'ALLOW',
+      reason: 'PRECONDITIONS_SATISFIED',
+      policy_version: POLICY_VERSION,
+    },
+  ]);
+});
+
+test('if every candidate analytical claim is blocked or unresolvable, safe fallback is used', () => {
+  const result = gate.evaluateResultSet(['CLAIM-X-AUTHENTIC', 'CLAIM-NOT-REGISTERED'], {
+    evidence_state: 'NO_SIGNAL_IN_SCOPE',
+  });
+
+  assert.equal(result.decision, 'SAFE_FALLBACK');
+  assert.equal(result.reason, 'ALL_CANDIDATES_BLOCKED_OR_UNRESOLVABLE');
+  assert.deepEqual(result.fallback.claim_ids, [
+    'CLAIM-INCONC-COVERAGE',
+    'CLAIM-LIMIT-NOT-LEGAL',
+    'CLAIM-META-RESULT-PERISHABLE',
+  ]);
+  assert.equal(result.fallback.evidence_state, 'INCONCLUSIVE');
+  assert.equal(result.fallback.policy_version, POLICY_VERSION);
+});
+
+test('safe fallback uses only claim IDs declared in composition.yaml', () => {
+  const fallback = gate.buildSafeFallback('TEST_REASON');
+
+  assert.deepEqual(fallback, {
+    decision: 'SAFE_FALLBACK',
+    reason: 'TEST_REASON',
+    evidence_state: 'INCONCLUSIVE',
+    claim_ids: [
+      'CLAIM-INCONC-COVERAGE',
+      'CLAIM-LIMIT-NOT-LEGAL',
+      'CLAIM-META-RESULT-PERISHABLE',
+    ],
+    policy_version: POLICY_VERSION,
+  });
+});
+
+test('analysis failure claim blocks outside ANALYSIS_FAILED state', () => {
+  const decision = gate.evaluateClaim('CLAIM-FAIL-ANALYSIS', {
+    evidence_state: 'INCONCLUSIVE',
+  });
+
+  assert.deepEqual(decision, {
+    claim_id: 'CLAIM-FAIL-ANALYSIS',
+    decision: 'BLOCK',
+    reason: 'UNRESOLVED_REQUIRED_STATE',
+    policy_version: POLICY_VERSION,
+  });
+});
+
+test('analysis failure claim is renderable when its companions are present', () => {
+  const result = gate.evaluateResultSet([
+    'CLAIM-FAIL-ANALYSIS',
+    'CLAIM-LIMIT-NOT-LEGAL',
+    'CLAIM-META-RESULT-PERISHABLE',
+  ], {
+    evidence_state: 'ANALYSIS_FAILED',
+  });
+
+  assert.equal(result.decision, 'ALLOW');
+  assert.deepEqual(result.claim_ids, [
+    'CLAIM-FAIL-ANALYSIS',
+    'CLAIM-LIMIT-NOT-LEGAL',
+    'CLAIM-META-RESULT-PERISHABLE',
+  ]);
+});
+
+test('analysis failure cannot become no-signal, authentic, or safe', () => {
+  const result = gate.evaluateResultSet(['CLAIM-X-SAFE', 'CLAIM-PROV-ABSENT'], {
+    evidence_state: 'ANALYSIS_FAILED',
+    evidence: [],
+  });
+
+  assert.equal(result.decision, 'SAFE_FALLBACK');
+  assert.equal(result.fallback.evidence_state, 'INCONCLUSIVE');
+  assert.deepEqual(result.gate_decisions, [
+    {
+      claim_id: 'CLAIM-X-SAFE',
+      decision: 'BLOCK',
+      reason: 'PERMANENTLY_BLOCKED',
+      policy_version: POLICY_VERSION,
+    },
+    {
+      claim_id: 'CLAIM-PROV-ABSENT',
+      decision: 'BLOCK',
+      reason: 'UNRESOLVED_REQUIRED_EVIDENCE',
+      policy_version: POLICY_VERSION,
+    },
+  ]);
+});
+
+test('mandatory claims still enforce declared companions', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace(
+      `    gp_refs:
+      - GP-002
+      - GP-014
+`,
+      `    mandatory_companions:
+      - CLAIM-LIMIT-NOT-LEGAL
+    gp_refs:
+      - GP-002
+      - GP-014
+`
+    );
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    const fixtureGate = createClaimGate(fixtureRoot);
+    const result = fixtureGate.evaluateResultSet(['CLAIM-PROV-ABSENT-SCOPE-NOTE']);
+
+    assert.equal(result.decision, 'HOLD');
+    assert.equal(result.reason, 'MISSING_MANDATORY_COMPANION');
+    assert.equal(result.missing_companion, 'CLAIM-LIMIT-NOT-LEGAL');
+  });
+});
+
+test('transitive companion chains hold when a nested companion is missing', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace(
+      `    gp_refs:
+      - GP-002
+      - GP-014
+`,
+      `    mandatory_companions:
+      - CLAIM-LIMIT-NOT-LEGAL
+    gp_refs:
+      - GP-002
+      - GP-014
+`
+    );
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    const fixtureGate = createClaimGate(fixtureRoot);
+    const result = fixtureGate.evaluateResultSet([
+      'CLAIM-PROV-ABSENT',
+      'CLAIM-PROV-ABSENT-SCOPE-NOTE',
+    ], {
+      evidence: [{ class: 'PROVENANCE', verification: 'ABSENT' }],
+    });
+
+    assert.equal(result.decision, 'HOLD');
+    assert.equal(result.reason, 'MISSING_MANDATORY_COMPANION');
+    assert.equal(result.missing_companion, 'CLAIM-LIMIT-NOT-LEGAL');
+  });
+});
+
+test('governance loader fails closed when copied policy files drift out of sync', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const compositionPath = path.join(fixtureRoot, 'governance/composition.yaml');
+    const composition = fs.readFileSync(compositionPath, 'utf8').replace('policy_version: rc-gov-0.2', 'policy_version: rc-gov-9.9');
+    fs.writeFileSync(compositionPath, composition);
+  }, (fixtureRoot) => {
+    assert.throws(() => loadGovernance(fixtureRoot), /policy_version must match/);
+  });
+});
+
+test('governance loader fails closed on invalid claim registry structure', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace('normative_level: ALLOW', 'normative_level: INVALID');
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    assert.throws(() => loadGovernance(fixtureRoot), /unsupported normative_level/);
+  });
+});
+
+test('governance loader fails closed on malformed Thai lexicon payloads', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const lexiconPath = path.join(fixtureRoot, 'governance/lexicon.th.yaml');
+    const lexicon = fs.readFileSync(lexiconPath, 'utf8').replace('  - "ของจริง"', '  - 123');
+    fs.writeFileSync(lexiconPath, lexicon);
+  }, (fixtureRoot) => {
+    assert.throws(() => loadGovernance(fixtureRoot), /hard_block_terms must be an array of strings/);
+  });
+});
+
+test('governance loader fails closed on malformed lexicon payloads', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const lexiconPath = path.join(fixtureRoot, 'governance/lexicon.en.yaml');
+    const lexicon = fs.readFileSync(lexiconPath, 'utf8').replace('  - "definitely authentic"', '  - 123');
+    fs.writeFileSync(lexiconPath, lexicon);
+  }, (fixtureRoot) => {
+    assert.throws(() => loadGovernance(fixtureRoot), /hard_block_terms must be an array of strings/);
+  });
+});
+
+test('every gate decision exposes structured audit fields including policy_version', () => {
+  const result = gate.evaluateResultSet([
+    'CLAIM-PROV-ABSENT',
+    'CLAIM-PROV-ABSENT-SCOPE-NOTE',
+  ], {
+    evidence: [{ class: 'PROVENANCE', verification: 'ABSENT' }],
+  });
+
+  assert.equal(result.decision, 'ALLOW');
+  assert.deepEqual(result.claim_ids, [
+    'CLAIM-PROV-ABSENT',
+    'CLAIM-PROV-ABSENT-SCOPE-NOTE',
+  ]);
+
+  for (const decision of result.gate_decisions) {
+    assert.deepEqual(Object.keys(decision).sort(), [
+      'claim_id',
+      'decision',
+      'policy_version',
+      'reason',
+    ]);
+    assert.equal(decision.policy_version, POLICY_VERSION);
+  }
+});
+
+test('all governance principle references in claims resolve to defined principles', () => {
+  assert.doesNotThrow(() => loadGovernance(path.resolve(__dirname, '..')));
+});
+
+test('governance loader fails closed on undefined GP references', () => {
+  withGovernanceFixture((fixtureRoot) => {
+    const claimsPath = path.join(fixtureRoot, 'governance/claims.yaml');
+    const claims = fs.readFileSync(claimsPath, 'utf8').replace(
+      '      - GP-001',
+      '      - GP-999'
+    );
+    fs.writeFileSync(claimsPath, claims);
+  }, (fixtureRoot) => {
+    assert.throws(
+      () => loadGovernance(fixtureRoot),
+      /references undefined governance principle GP-999/
+    );
+  });
+});

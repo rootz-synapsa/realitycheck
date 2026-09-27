@@ -1,0 +1,118 @@
+policy_version: rc-gov-0.2
+claims:
+
+  CLAIM-PROV-ABSENT:
+    family: PROVENANCE
+    normative_level: ALLOW
+    requires_evidence:
+      - class: PROVENANCE
+        verification: ABSENT
+    template:
+      th: "ไม่พบบันทึกที่มาในรูปแบบที่ระบบรองรับ ซึ่งพบได้ทั่วไปกับไฟล์ที่ผ่านการส่งต่อหรือการแปลงรูปแบบ"
+      en: "No provenance record was found in a format supported by the system. This can be common after media has been forwarded or transformed."
+    mandatory_companions:
+      - CLAIM-PROV-ABSENT-SCOPE-NOTE
+    gp_refs:
+      - GP-001
+      - GP-002
+      - GP-014
+
+  CLAIM-PROV-ABSENT-SCOPE-NOTE:
+    family: LIMITATION
+    normative_level: MANDATORY
+    template:
+      th: "การไม่พบบันทึกที่มาไม่ได้ยืนยันว่าไฟล์เป็นของจริง ปลอดภัย หรือไม่เคยถูกแก้ไข"
+      en: "The absence of a provenance record does not prove that the file is authentic, safe, or unmodified."
+    gp_refs:
+      - GP-002
+      - GP-014
+
+  CLAIM-INCONC-COVERAGE:
+    family: INCONCLUSIVE
+    normative_level: ALLOW
+    requires_state:
+      evidence_state:
+        - INCONCLUSIVE
+    template:
+      th: "ระบบตรวจได้เพียงบางส่วนของไฟล์นี้ จึงยังไม่มีหลักฐานเพียงพอสำหรับข้อสรุปเชิงวิเคราะห์"
+      en: "Only part of this file could be assessed, so there is not enough supported evidence for an analytical conclusion."
+    mandatory_companions:
+      - CLAIM-LIMIT-NOT-LEGAL
+      - CLAIM-META-RESULT-PERISHABLE
+    gp_refs:
+      - GP-006
+      - GP-007
+      - GP-014
+      - GP-015
+
+  CLAIM-FAIL-ANALYSIS:
+    family: FAILURE
+    normative_level: ALLOW
+    requires_state:
+      evidence_state:
+        - ANALYSIS_FAILED
+    template:
+      th: "การวิเคราะห์ไม่สำเร็จ ผลนี้ไม่ได้หมายความว่าไฟล์ปลอดภัย มีปัญหา เป็นของจริง หรือเป็นของปลอม"
+      en: "The analysis did not complete successfully. This does not mean the file is safe, problematic, authentic, or fake."
+    mandatory_companions:
+      - CLAIM-LIMIT-NOT-LEGAL
+      - CLAIM-META-RESULT-PERISHABLE
+    gp_refs:
+      - GP-001
+      - GP-002
+      - GP-015
+
+  CLAIM-LIMIT-NOT-LEGAL:
+    family: LIMITATION
+    normative_level: MANDATORY
+    template:
+      th: "ผลนี้เป็นข้อมูลประกอบการพิจารณา ไม่ใช่คำรับรองหรือข้อวินิจฉัยทางกฎหมาย"
+      en: "This result is decision-support information, not a legal certification or legal determination."
+    gp_refs:
+      - GP-011
+      - GP-014
+
+  CLAIM-META-RESULT-PERISHABLE:
+    family: META
+    normative_level: MANDATORY
+    template:
+      th: "ผลนี้ผูกกับไฟล์ เวลาที่ตรวจ เครื่องมือ และนโยบายเวอร์ชันที่ใช้ในขณะนั้น"
+      en: "This result is bound to the file, analysis time, tools, and policy version used at that time."
+    gp_refs:
+      - GP-012
+      - GP-023
+
+  CLAIM-X-AUTHENTIC:
+    family: BLOCKED
+    normative_level: PERMANENTLY_BLOCKED
+    reason: "GP-002"
+
+  CLAIM-X-FAKE:
+    family: BLOCKED
+    normative_level: PERMANENTLY_BLOCKED
+    reason: "GP-001, GP-004"
+
+  CLAIM-X-ACTOR-SCAMMER:
+    family: BLOCKED
+    normative_level: PERMANENTLY_BLOCKED
+    reason: "GP-008"
+
+  CLAIM-X-INTENT-DECEIVE:
+    family: BLOCKED
+    normative_level: PERMANENTLY_BLOCKED
+    reason: "GP-009"
+
+  CLAIM-X-IDENTITY-MATCH:
+    family: BLOCKED
+    normative_level: PERMANENTLY_BLOCKED
+    reason: "GP-008, GP-029"
+
+  CLAIM-X-LEGAL-PROOF:
+    family: BLOCKED
+    normative_level: PERMANENTLY_BLOCKED
+    reason: "GP-011"
+
+  CLAIM-X-SAFE:
+    family: BLOCKED
+    normative_level: PERMANENTLY_BLOCKED
+    reason: "GP-002, GP-015"
