@@ -7,12 +7,13 @@
  * Encodes detected properties and explicit coverage markers without
  * making analytical conclusions.
  * 
- * Adheres to RC-WC-002 contract requirements:
- * - Only evidence from observations
+ * Contract RC-WC-002 compliance:
+ * - Only evidence from verified observations
  * - No raw media bytes
- * - Explicit coverage state
- * - Deterministic validation
- * - Governance-ready context
+ * - Explicit coverage state with NOT_SUPPORTED/FAILED/CHECKED/PARTIAL
+ * - Deterministic validation (no || shortcuts)
+ * - Distinguishes MISSING (field absent/null) from INVALID (field failed validation)
+ * - Governance-ready context: INCONCLUSIVE for metadata-only, ANALYSIS_FAILED for errors/rejected
  */
 
 const EvidenceClass = {
@@ -25,17 +26,17 @@ const VerificationStatus = {
 };
 
 const CoverageStatus = {
-  CHECKED: 'CHECKED',
-  FAILED: 'FAILED',
-  NOT_SUPPORTED: 'NOT_SUPPORTED',
-  PARTIAL: 'PARTIAL'
+  CHECKED: 'CHECKED',       // Successfully extracted and validated
+  FAILED: 'FAILED',         // Attempted extraction but validation failed
+  NOT_SUPPORTED: 'NOT_SUPPORTED',  // Capability not implemented in RC-WC-002
+  PARTIAL: 'PARTIAL'        // Some fields extracted, others missing/failed
 };
 
 const ExtractionStatus = {
-  COMPLETE: 'COMPLETE',
-  PARTIAL: 'PARTIAL',
-  FAILED: 'FAILED',
-  REJECTED: 'REJECTED'
+  COMPLETE: 'COMPLETE',     // All applicable observations extracted and valid
+  PARTIAL: 'PARTIAL',       // Some observations extracted, some failed/missing
+  FAILED: 'FAILED',         // Extraction failed; no valid observations
+  REJECTED: 'REJECTED'      // Input rejected before extraction (wrong type, etc.)
 };
 
 const AcquisitionMethod = {
@@ -47,51 +48,79 @@ const ProcessingLocation = {
 };
 
 /**
- * Validate a numeric field is finite and non-negative
+ * Check if a value is a legitimate observed numeric field
+ * Returns { valid: true/false, error?: string }
+ * 
+ * Valid: finite, non-negative numbers (including 0)
+ * Invalid: NaN, Infinity, negative, non-number
+ * Missing: null or undefined
  */
 function validateNumericField(value, fieldName) {
+  // null or undefined = MISSING (not an error, expected for unread fields)
   if (value === null || value === undefined) {
-    return null;
+    return { valid: 'MISSING' };
   }
+
+  // Type check
+  if (typeof value !== 'number') {
+    return {
+      valid: false,
+      error: `${fieldName} is not a number: ${typeof value}`
+    };
+  }
+
+  // Finite check
   if (!Number.isFinite(value)) {
     return {
       valid: false,
       error: `${fieldName} is not finite: ${value}`
     };
   }
+
+  // Negative check
   if (value < 0) {
     return {
       valid: false,
       error: `${fieldName} is negative: ${value}`
     };
   }
+
   return { valid: true };
 }
 
 /**
  * Validate all numeric video metadata fields
+ * Returns { valid: true/false, errors?: string[], allMissing?: boolean }
  */
 function validateVideoMetadata(metadata) {
   const errors = [];
+  const validations = {
+    duration_seconds: validateNumericField(metadata.duration_seconds, 'duration_seconds'),
+    width: validateNumericField(metadata.width, 'width'),
+    height: validateNumericField(metadata.height, 'height')
+  };
 
-  const durationValidation = validateNumericField(metadata.duration_seconds, 'duration_seconds');
-  if (durationValidation && !durationValidation.valid) {
-    errors.push(durationValidation.error);
-  }
+  let hasValidField = false;
+  let hasMissingField = false;
 
-  const widthValidation = validateNumericField(metadata.width, 'width');
-  if (widthValidation && !widthValidation.valid) {
-    errors.push(widthValidation.error);
-  }
+  Object.entries(validations).forEach(([field, result]) => {
+    if (result.valid === 'MISSING') {
+      hasMissingField = true;
+    } else if (result.valid === true) {
+      hasValidField = true;
+    } else if (result.valid === false) {
+      errors.push(result.error);
+    }
+  });
 
-  const heightValidation = validateNumericField(metadata.height, 'height');
-  if (heightValidation && !heightValidation.valid) {
-    errors.push(heightValidation.error);
-  }
+  // All fields missing = no attempt to extract
+  const allMissing = !hasValidField && hasMissingField && errors.length === 0;
 
   return {
-    valid: errors.length === 0,
-    errors
+    valid: errors.length === 0 && hasValidField, // Must have at least one valid field
+    errors,
+    allMissing,
+    validations
   };
 }
 
@@ -99,11 +128,14 @@ function validateVideoMetadata(metadata) {
  * Validate MIME type format
  */
 function validateMimeType(mimeType) {
-  if (!mimeType) {
-    return { valid: false, error: 'mime_type is empty' };
+  if (mimeType === null || mimeType === undefined) {
+    return { valid: 'MISSING' };
   }
   if (typeof mimeType !== 'string') {
     return { valid: false, error: 'mime_type is not a string' };
+  }
+  if (mimeType === '') {
+    return { valid: false, error: 'mime_type is empty string' };
   }
   if (!mimeType.includes('/')) {
     return { valid: false, error: `mime_type format invalid: ${mimeType}` };
@@ -115,6 +147,12 @@ function validateMimeType(mimeType) {
  * Validate file size
  */
 function validateFileSize(sizeBytes) {
+  if (sizeBytes === null || sizeBytes === undefined) {
+    return { valid: 'MISSING' };
+  }
+  if (typeof sizeBytes !== 'number') {
+    return { valid: false, error: `size_bytes is not a number: ${typeof sizeBytes}` };
+  }
   if (!Number.isFinite(sizeBytes)) {
     return { valid: false, error: `size_bytes is not finite: ${sizeBytes}` };
   }
@@ -146,17 +184,26 @@ function createFileMetadataObservation(fileMetadata) {
 
 /**
  * Create a VIDEO_METADATA observation
+ * Only include fields that are actually valid numbers
  */
-function createVideoMetadataObservation(videoMetadata) {
+function createVideoMetadataObservation(videoMetadata, validations) {
+  const fields = {};
+
+  if (validations.duration_seconds && validations.duration_seconds.valid === true) {
+    fields.duration_seconds = videoMetadata.duration_seconds;
+  }
+  if (validations.width && validations.width.valid === true) {
+    fields.width = videoMetadata.width;
+  }
+  if (validations.height && validations.height.valid === true) {
+    fields.height = videoMetadata.height;
+  }
+
   return {
     class: EvidenceClass.VIDEO_METADATA,
     verification: VerificationStatus.OBSERVED,
     method: 'browser_video_metadata',
-    fields: {
-      duration_seconds: videoMetadata.duration_seconds,
-      width: videoMetadata.width,
-      height: videoMetadata.height
-    }
+    fields
   };
 }
 
@@ -189,10 +236,10 @@ function buildEvidenceBundle(inputs = {}) {
   const schemaVersion = inputs.schema_version || 'rc-evidence-0.1';
   const file = inputs.file || {};
   const video = inputs.video || {};
-  const extractionStatus = inputs.extraction_status || ExtractionStatus.COMPLETE;
+  let extractionStatus = inputs.extraction_status || ExtractionStatus.COMPLETE;
   const extractionErrors = Array.isArray(inputs.extraction_errors) ? inputs.extraction_errors : [];
 
-  // Initialize bundle structure
+  // Initialize bundle structure with all fields preserved (no || null shortcuts)
   const bundle = {
     schema_version: schemaVersion,
     media_type: 'video',
@@ -201,15 +248,15 @@ function buildEvidenceBundle(inputs = {}) {
       processing_location: ProcessingLocation.LOCAL_DEVICE
     },
     file: {
-      name: file.name || null,
-      size_bytes: file.size_bytes || null,
-      mime_type: file.mime_type || null,
-      last_modified: file.last_modified || null
+      name: file.name !== undefined ? file.name : null,
+      size_bytes: file.size_bytes !== undefined ? file.size_bytes : null,
+      mime_type: file.mime_type !== undefined ? file.mime_type : null,
+      last_modified: file.last_modified !== undefined ? file.last_modified : null
     },
     video: {
-      duration_seconds: video.duration_seconds || null,
-      width: video.width || null,
-      height: video.height || null
+      duration_seconds: video.duration_seconds !== undefined ? video.duration_seconds : null,
+      width: video.width !== undefined ? video.width : null,
+      height: video.height !== undefined ? video.height : null
     },
     observations: [],
     coverage: {
@@ -226,63 +273,81 @@ function buildEvidenceBundle(inputs = {}) {
     }
   };
 
-  // Validate and add file metadata observation
-  if (file.name && file.size_bytes !== undefined && file.mime_type) {
-    const fileSizeValidation = validateFileSize(file.size_bytes);
-    const mimeTypeValidation = validateMimeType(file.mime_type);
+  // If already rejected, return early without attempting observation extraction
+  if (extractionStatus === ExtractionStatus.REJECTED) {
+    return bundle;
+  }
 
-    if (fileSizeValidation.valid && mimeTypeValidation.valid) {
-      bundle.observations.push(createFileMetadataObservation(file));
-      bundle.coverage.file_metadata = CoverageStatus.CHECKED;
-    } else {
-      const errors = [];
-      if (!fileSizeValidation.valid) {
-        errors.push(fileSizeValidation.error);
-      }
-      if (!mimeTypeValidation.valid) {
-        errors.push(mimeTypeValidation.error);
-      }
-      bundle.coverage.file_metadata = CoverageStatus.FAILED;
-      bundle.extraction.errors.push(
-        createExtractionError('FILE_METADATA_VALIDATION_FAILED', 'file_metadata', errors.join('; '))
-      );
+  // Validate and add file metadata observation
+  // Only add observation if BOTH file.name and file.mime_type are present and valid
+  const fileSizeValidation = validateFileSize(file.size_bytes);
+  const mimeTypeValidation = validateMimeType(file.mime_type);
+
+  if (
+    file.name !== undefined && file.name !== null &&
+    fileSizeValidation.valid === true &&
+    mimeTypeValidation.valid === true
+  ) {
+    bundle.observations.push(createFileMetadataObservation(file));
+    bundle.coverage.file_metadata = CoverageStatus.CHECKED;
+  } else if (
+    file.name !== undefined && file.name !== null &&
+    (fileSizeValidation.valid === false || mimeTypeValidation.valid === false)
+  ) {
+    // Attempted to extract file metadata but validation failed
+    bundle.coverage.file_metadata = CoverageStatus.FAILED;
+    const errors = [];
+    if (fileSizeValidation.valid === false) {
+      errors.push(fileSizeValidation.error);
     }
+    if (mimeTypeValidation.valid === false) {
+      errors.push(mimeTypeValidation.error);
+    }
+    bundle.extraction.errors.push(
+      createExtractionError('FILE_METADATA_VALIDATION_FAILED', 'file_metadata', errors.join('; '))
+    );
   }
 
   // Validate and add video metadata observation
-  if (
-    video.duration_seconds !== undefined ||
-    video.width !== undefined ||
-    video.height !== undefined
-  ) {
-    const videoValidation = validateVideoMetadata(video);
-    if (videoValidation.valid) {
-      bundle.observations.push(createVideoMetadataObservation(video));
-      bundle.coverage.video_metadata = CoverageStatus.CHECKED;
-    } else {
-      bundle.coverage.video_metadata = CoverageStatus.FAILED;
-      bundle.extraction.errors.push(
-        createExtractionError(
-          'VIDEO_METADATA_VALIDATION_FAILED',
-          'video_metadata',
-          videoValidation.errors.join('; ')
-        )
-      );
-    }
+  // Only add if at least one field is present and valid
+  const videoValidation = validateVideoMetadata(video);
+
+  if (videoValidation.allMissing) {
+    // All video fields are missing: no attempt made
+    bundle.coverage.video_metadata = CoverageStatus.NOT_SUPPORTED;
+  } else if (videoValidation.valid === true) {
+    // At least one field is valid
+    bundle.observations.push(createVideoMetadataObservation(video, videoValidation.validations));
+    bundle.coverage.video_metadata = CoverageStatus.CHECKED;
+  } else if (videoValidation.errors.length > 0) {
+    // At least one field was present but validation failed
+    bundle.coverage.video_metadata = CoverageStatus.FAILED;
+    bundle.extraction.errors.push(
+      createExtractionError(
+        'VIDEO_METADATA_VALIDATION_FAILED',
+        'video_metadata',
+        videoValidation.errors.join('; ')
+      )
+    );
   }
 
-  // Update extraction status based on coverage
-  if (bundle.extraction.status === ExtractionStatus.COMPLETE) {
-    const checkedCount = Object.values(bundle.coverage).filter(
+  // Automatically update extraction status based on coverage (only if not pre-set to REJECTED)
+  if (extractionStatus !== ExtractionStatus.REJECTED) {
+    const checkedFields = Object.values(bundle.coverage).filter(
       (s) => s === CoverageStatus.CHECKED
     ).length;
-    const failedCount = Object.values(bundle.coverage).filter(
+    const failedFields = Object.values(bundle.coverage).filter(
       (s) => s === CoverageStatus.FAILED
     ).length;
 
-    if (failedCount > 0 && checkedCount > 0) {
+    if (checkedFields > 0 && failedFields > 0) {
       bundle.extraction.status = ExtractionStatus.PARTIAL;
-    } else if (failedCount > 0 && checkedCount === 0) {
+    } else if (checkedFields === 0 && failedFields > 0) {
+      bundle.extraction.status = ExtractionStatus.FAILED;
+    } else if (checkedFields > 0 && failedFields === 0) {
+      bundle.extraction.status = ExtractionStatus.COMPLETE;
+    } else {
+      // No fields checked or failed
       bundle.extraction.status = ExtractionStatus.FAILED;
     }
   }
@@ -292,6 +357,10 @@ function buildEvidenceBundle(inputs = {}) {
 
 /**
  * Map extraction status to governance evidence_state
+ * 
+ * Contract semantics:
+ * - COMPLETE or PARTIAL with observations -> INCONCLUSIVE
+ * - FAILED or REJECTED -> ANALYSIS_FAILED
  */
 function getEvidenceState(bundle) {
   if (!bundle || typeof bundle !== 'object') {
@@ -314,8 +383,14 @@ function getEvidenceState(bundle) {
 
 /**
  * Create governance-ready context from Evidence Bundle
+ * 
+ * Rejected bundles should NOT have a governance context (null indicates not renderable)
  */
 function createGovernanceContext(bundle) {
+  if (!bundle || bundle.extraction?.status === ExtractionStatus.REJECTED) {
+    return null;
+  }
+
   return {
     evidence_state: getEvidenceState(bundle),
     evidence: bundle.observations || []
