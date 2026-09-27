@@ -193,17 +193,38 @@ function createVideoMetadataObservation(videoMetadata, validations) {
 }
 
 function normalizeExtractionStatus(coverage) {
-  const values = Object.values(coverage);
-  const checkedCount = values.filter((status) => status === CoverageStatus.CHECKED).length;
-  const partialCount = values.filter((status) => status === CoverageStatus.PARTIAL).length;
-  const failedCount = values.filter((status) => status === CoverageStatus.FAILED).length;
+  const fileCoverage = coverage.file_metadata;
+  const videoCoverage = coverage.video_metadata;
 
-  if (partialCount > 0 || (checkedCount > 0 && failedCount > 0)) {
-    return ExtractionStatus.PARTIAL;
-  }
-  if (checkedCount > 0 && failedCount === 0) {
+  if (
+    fileCoverage === CoverageStatus.CHECKED &&
+    videoCoverage === CoverageStatus.CHECKED
+  ) {
     return ExtractionStatus.COMPLETE;
   }
+
+  if (videoCoverage === CoverageStatus.FAILED) {
+    return ExtractionStatus.FAILED;
+  }
+
+  if (
+    fileCoverage === CoverageStatus.PARTIAL ||
+    videoCoverage === CoverageStatus.PARTIAL
+  ) {
+    return ExtractionStatus.PARTIAL;
+  }
+
+  if (
+    fileCoverage === CoverageStatus.CHECKED ||
+    videoCoverage === CoverageStatus.CHECKED
+  ) {
+    return ExtractionStatus.PARTIAL;
+  }
+
+  if (fileCoverage === CoverageStatus.FAILED) {
+    return ExtractionStatus.FAILED;
+  }
+
   return ExtractionStatus.FAILED;
 }
 
@@ -294,10 +315,6 @@ function buildEvidenceBundle(inputs = {}) {
   }
 
   bundle.extraction.status = normalizeExtractionStatus(bundle.coverage);
-
-  if (explicitStatus === ExtractionStatus.FAILED) {
-    bundle.extraction.status = ExtractionStatus.FAILED;
-  }
 
   return bundle;
 }

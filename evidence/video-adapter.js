@@ -191,7 +191,6 @@ async function adaptVideoFile(file, injectedBrowserAPI) {
   const bundle = buildEvidenceBundle({
     file: fileMetadata,
     video: metadataResult.video,
-    extraction_status: metadataResult.error ? ExtractionStatus.FAILED : ExtractionStatus.COMPLETE,
     extraction_errors: extractionErrors
   });
 

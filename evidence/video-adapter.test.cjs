@@ -145,6 +145,7 @@ test('T03 metadata read failure', async () => {
   assert.equal(result.bundle.coverage.video_metadata, CoverageStatus.FAILED);
   assert.equal(result.bundle.extraction.status, ExtractionStatus.FAILED);
   assert.equal(result.bundle.extraction.errors.some((e) => e.stage === 'video_metadata_read'), true);
+  assert.equal(result.governanceContext.evidence_state, 'ANALYSIS_FAILED');
   assert.equal(getEvidenceState(result.bundle), 'ANALYSIS_FAILED');
 });
 
@@ -217,10 +218,17 @@ test('T07 local-only/no-network invariant', async () => {
   }
 
   const adapterSource = fs.readFileSync(path.resolve(__dirname, 'video-adapter.js'), 'utf8');
+  const bundleSource = fs.readFileSync(path.resolve(__dirname, 'evidence-bundle.js'), 'utf8');
+
   assert.equal(adapterSource.includes('fetch('), false);
   assert.equal(adapterSource.includes('XMLHttpRequest'), false);
   assert.equal(adapterSource.includes('http://'), false);
   assert.equal(adapterSource.includes('https://'), false);
+
+  assert.equal(bundleSource.includes('fetch('), false);
+  assert.equal(bundleSource.includes('XMLHttpRequest'), false);
+  assert.equal(bundleSource.includes('http://'), false);
+  assert.equal(bundleSource.includes('https://'), false);
 });
 
 /* T08 */
@@ -316,6 +324,33 @@ test('dependency injection works without DOM globals', async () => {
   try {
     const result = await adaptVideoFile(file, browserAPI);
     assert.equal(result.bundle.coverage.video_metadata, CoverageStatus.CHECKED);
+  } finally {
+    if (originalDocument !== undefined) {
+      global.document = originalDocument;
+    }
+    if (originalURL !== undefined) {
+      global.URL = originalURL;
+    }
+  }
+});
+
+
+test('failed extraction without browser APIs is non-renderable', async () => {
+  const file = createMockVideoFile();
+  const originalDocument = global.document;
+  const originalURL = global.URL;
+  delete global.document;
+  delete global.URL;
+
+  try {
+    const result = await adaptVideoFile(file);
+    assert.equal(result.bundle.extraction.status, ExtractionStatus.FAILED);
+    assert.equal(result.bundle.coverage.file_metadata, CoverageStatus.CHECKED);
+    assert.equal(result.bundle.coverage.video_metadata, CoverageStatus.FAILED);
+    assert.equal(result.bundle.observations.some((obs) => obs.class === 'FILE_METADATA'), true);
+    assert.equal(result.bundle.observations.some((obs) => obs.class === 'VIDEO_METADATA'), false);
+    assert.equal(result.bundle.extraction.errors.some((e) => e.code === 'BROWSER_API_NOT_AVAILABLE'), true);
+    assert.equal(result.governanceContext.evidence_state, 'ANALYSIS_FAILED');
   } finally {
     if (originalDocument !== undefined) {
       global.document = originalDocument;

@@ -371,8 +371,11 @@ if (videoInput) {
       const result =
         await adapter.adaptVideoFile(file);
 
+      const extractionStatus =
+        result?.bundle?.extraction?.status;
+
       if (
-        result?.bundle?.extraction?.status ===
+        extractionStatus ===
         "REJECTED"
       ) {
         showToast(
@@ -386,6 +389,20 @@ if (videoInput) {
         result?.bundle || null;
       selectedGovernanceContext =
         result?.governanceContext || null;
+
+      if (
+        extractionStatus ===
+        "FAILED"
+      ) {
+        if (fileMeta) {
+          fileMeta.textContent =
+            `${formatBytes(file.size)} · ไม่ทราบความยาว`;
+        }
+        if (startCheckButton) {
+          startCheckButton.disabled = false;
+        }
+        return;
+      }
 
       const metadata =
         getSelectedVideoFields();
