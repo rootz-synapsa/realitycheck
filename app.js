@@ -64,12 +64,8 @@ const toast =
 
 
 let selectedFile = null;
-
-let selectedMetadata = {
-  duration: null,
-  width: null,
-  height: null
-};
+let selectedEvidenceBundle = null;
+let selectedGovernanceContext = null;
 
 
 /* -------------------------
@@ -184,6 +180,22 @@ function formatDuration(seconds) {
 }
 
 
+function getSelectedVideoFields() {
+
+  const video =
+    selectedEvidenceBundle?.video;
+
+  return {
+    duration:
+      video?.duration_seconds,
+    width:
+      video?.width,
+    height:
+      video?.height
+  };
+}
+
+
 /* -------------------------
    RESET VIDEO
 ------------------------- */
@@ -191,12 +203,8 @@ function formatDuration(seconds) {
 function resetVideoSelection() {
 
   selectedFile = null;
-
-  selectedMetadata = {
-    duration: null,
-    width: null,
-    height: null
-  };
+  selectedEvidenceBundle = null;
+  selectedGovernanceContext = null;
 
   if (videoInput) {
     videoInput.value = "";
@@ -209,66 +217,6 @@ function resetVideoSelection() {
   if (startCheckButton) {
     startCheckButton.disabled = true;
   }
-}
-
-
-/* -------------------------
-   READ VIDEO METADATA
-------------------------- */
-
-function readVideoMetadata(file) {
-
-  return new Promise(resolve => {
-
-    const video =
-      document.createElement("video");
-
-    const objectUrl =
-      URL.createObjectURL(file);
-
-    video.preload =
-      "metadata";
-
-
-    video.onloadedmetadata = () => {
-
-      const metadata = {
-
-        duration:
-          video.duration,
-
-        width:
-          video.videoWidth,
-
-        height:
-          video.videoHeight
-      };
-
-      URL.revokeObjectURL(
-        objectUrl
-      );
-
-      resolve(metadata);
-    };
-
-
-    video.onerror = () => {
-
-      URL.revokeObjectURL(
-        objectUrl
-      );
-
-      resolve({
-        duration: null,
-        width: null,
-        height: null
-      });
-    };
-
-
-    video.src =
-      objectUrl;
-  });
 }
 
 
@@ -411,22 +359,45 @@ if (videoInput) {
       }
 
 
-      selectedMetadata =
-        await readVideoMetadata(
-          file
-        );
+      const adapter =
+        globalThis.RealityCheckVideoAdapter;
 
+      if (!adapter) {
+        showToast("ระบบอ่านข้อมูลวิดีโอไม่พร้อมใช้งาน");
+        resetVideoSelection();
+        return;
+      }
+
+      const result =
+        await adapter.adaptVideoFile(file);
+
+      if (
+        result?.bundle?.extraction?.status ===
+        "REJECTED"
+      ) {
+        showToast(
+          "กรุณาเลือกไฟล์วิดีโอ"
+        );
+        resetVideoSelection();
+        return;
+      }
+
+      selectedEvidenceBundle =
+        result?.bundle || null;
+      selectedGovernanceContext =
+        result?.governanceContext || null;
+
+      const metadata =
+        getSelectedVideoFields();
 
       const durationText =
-        selectedMetadata.duration
+        Number.isFinite(metadata.duration)
           ? formatDuration(
-              selectedMetadata.duration
+              metadata.duration
             )
           : "ไม่ทราบความยาว";
 
-
       if (fileMeta) {
-
         fileMeta.textContent =
           `${formatBytes(file.size)} · ${durationText}`;
       }
@@ -566,6 +537,9 @@ if (startCheckButton) {
 
 function populateResult() {
 
+  const metadata =
+    getSelectedVideoFields();
+
   if (resultFileStatus) {
 
     resultFileStatus.textContent =
@@ -578,9 +552,9 @@ function populateResult() {
   if (resultDuration) {
 
     resultDuration.textContent =
-      selectedMetadata.duration
+      Number.isFinite(metadata.duration)
         ? formatDuration(
-            selectedMetadata.duration
+            metadata.duration
           )
         : "อ่านไม่ได้";
   }
@@ -590,11 +564,15 @@ function populateResult() {
 
     resultResolution.textContent =
       (
-        selectedMetadata.width &&
-        selectedMetadata.height
+        Number.isFinite(
+          metadata.width
+        ) &&
+        Number.isFinite(
+          metadata.height
+        )
       )
-        ? `${selectedMetadata.width} × ${selectedMetadata.height}`
-        : "อ่านไม่ได้";
+        ? `${metadata.width} × ${metadata.height}`
+        : "ไม่ทราบ";
   }
 }
 

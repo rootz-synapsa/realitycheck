@@ -1,33 +1,17 @@
 'use strict';
 
-/**
- * Video Adapter
- * 
- * Canonical implementation used by both browser and Node.js environments.
- * Reads observable video metadata from browser File objects.
- * Coordinates with Evidence Bundle to create normalized, governance-ready observations.
- * 
- * Adheres to RC-WC-002 contract:
- * - Local-device processing only
- * - No external network calls
- * - Observation-only (no analytical conclusions)
- * - Deterministic output
- * - Explicit failure handling
- * - Browser dependency injection for testability
- * - URL.revokeObjectURL() guaranteed on all paths
- * 
- * Exports to globalThis.RealityCheckVideoAdapter in browser.
- * Exports through module.exports in Node.
- */
-
-function getEvidenceBundle() {
+function resolveEvidenceBundleAPI() {
   if (typeof globalThis !== 'undefined' && globalThis.RealityCheckEvidenceBundle) {
     return globalThis.RealityCheckEvidenceBundle;
   }
   if (typeof require !== 'undefined') {
     return require('./evidence-bundle.js');
   }
-  throw new Error('Evidence Bundle not available');
+  throw new Error('RealityCheckEvidenceBundle is not available');
+}
+
+function valueOrNull(value) {
+  return value === undefined ? null : value;
 }
 
 function isSupportedVideoType(file) {
@@ -35,89 +19,17 @@ function isSupportedVideoType(file) {
     return false;
   }
 
-  const type = file.type || '';
-
-  if (type.startsWith('video/')) {
-    return true;
-  }
-
-  return false;
+  const type = typeof file.type === 'string' ? file.type : '';
+  return type.startsWith('video/');
 }
 
 function extractFileMetadata(file) {
   return {
-    name: file.name !== undefined ? file.name : null,
-    size_bytes: file.size !== undefined ? file.size : null,
-    mime_type: file.type !== undefined ? file.type : null,
-    last_modified: file.lastModified !== undefined ? file.lastModified : null
+    name: valueOrNull(file.name),
+    size_bytes: valueOrNull(file.size),
+    mime_type: valueOrNull(file.type),
+    last_modified: valueOrNull(file.lastModified)
   };
-}
-
-function readVideoMetadata(file, browserAPI) {
-  return new Promise((resolve) => {
-    if (!browserAPI || !browserAPI.createElement || !browserAPI.createObjectURL || !browserAPI.revokeObjectURL) {
-      resolve({
-        duration_seconds: null,
-        width: null,
-        height: null,
-        error: 'BROWSER_API_NOT_AVAILABLE'
-      });
-      return;
-    }
-
-    let objectUrl = null;
-
-    try {
-      const video = browserAPI.createElement('video');
-      objectUrl = browserAPI.createObjectURL(file);
-
-      video.preload = 'metadata';
-
-      video.onloadedmetadata = () => {
-        const metadata = {
-          duration_seconds: video.duration !== undefined ? video.duration : null,
-          width: video.videoWidth !== undefined ? video.videoWidth : null,
-          height: video.videoHeight !== undefined ? video.videoHeight : null
-        };
-
-        if (objectUrl) {
-          browserAPI.revokeObjectURL(objectUrl);
-        }
-
-        resolve(metadata);
-      };
-
-      video.onerror = () => {
-        if (objectUrl) {
-          browserAPI.revokeObjectURL(objectUrl);
-        }
-
-        resolve({
-          duration_seconds: null,
-          width: null,
-          height: null,
-          error: 'VIDEO_METADATA_READ_ERROR'
-        });
-      };
-
-      video.src = objectUrl;
-    } catch (err) {
-      if (objectUrl && browserAPI.revokeObjectURL) {
-        try {
-          browserAPI.revokeObjectURL(objectUrl);
-        } catch (revokeErr) {
-          // Ignore revoke errors
-        }
-      }
-
-      resolve({
-        duration_seconds: null,
-        width: null,
-        height: null,
-        error: 'VIDEO_METADATA_EXCEPTION'
-      });
-    }
-  });
 }
 
 function getDefaultBrowserAPI() {
@@ -126,26 +38,122 @@ function getDefaultBrowserAPI() {
   }
 
   return {
-    createElement: (tag) => document.createElement(tag),
+    createElement: (tagName) => document.createElement(tagName),
     createObjectURL: (blob) => URL.createObjectURL(blob),
     revokeObjectURL: (url) => URL.revokeObjectURL(url)
   };
 }
 
-async function adaptVideoFile(file, browserAPI) {
-  const EvidenceBundle = getEvidenceBundle();
-  const { buildEvidenceBundle, createGovernanceContext, ExtractionStatus, createExtractionError } =
-    EvidenceBundle;
+function readVideoMetadata(file, browserAPI) {
+  return new Promise((resolve) => {
+    if (
+      !browserAPI ||
+      typeof browserAPI.createElement !== 'function' ||
+      typeof browserAPI.createObjectURL !== 'function' ||
+      typeof browserAPI.revokeObjectURL !== 'function'
+    ) {
+      resolve({
+        video: {
+          duration_seconds: null,
+          width: null,
+          height: null
+        },
+        error: {
+          code: 'BROWSER_API_NOT_AVAILABLE',
+          stage: 'video_metadata_read',
+          message: 'Browser metadata APIs are unavailable'
+        }
+      });
+      return;
+    }
 
-  if (!browserAPI) {
-    browserAPI = getDefaultBrowserAPI();
-  }
+    let videoElement;
+    let objectUrl;
+    let settled = false;
+    let revoked = false;
+
+    const revokeOnce = () => {
+      if (!revoked && objectUrl !== undefined) {
+        revoked = true;
+        browserAPI.revokeObjectURL(objectUrl);
+      }
+    };
+
+    const finish = (result) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      try {
+        revokeOnce();
+      } finally {
+        resolve(result);
+      }
+    };
+
+    try {
+      videoElement = browserAPI.createElement('video');
+      objectUrl = browserAPI.createObjectURL(file);
+      videoElement.preload = 'metadata';
+
+      videoElement.onloadedmetadata = () => {
+        finish({
+          video: {
+            duration_seconds: valueOrNull(videoElement.duration),
+            width: valueOrNull(videoElement.videoWidth),
+            height: valueOrNull(videoElement.videoHeight)
+          }
+        });
+      };
+
+      videoElement.onerror = () => {
+        finish({
+          video: {
+            duration_seconds: null,
+            width: null,
+            height: null
+          },
+          error: {
+            code: 'VIDEO_METADATA_READ_FAILED',
+            stage: 'video_metadata_read',
+            message: 'Unable to read video metadata from selected file'
+          }
+        });
+      };
+
+      videoElement.src = objectUrl;
+    } catch (error) {
+      finish({
+        video: {
+          duration_seconds: null,
+          width: null,
+          height: null
+        },
+        error: {
+          code: 'VIDEO_METADATA_READ_EXCEPTION',
+          stage: 'video_metadata_read',
+          message: error && error.message ? error.message : 'Unexpected metadata read exception'
+        }
+      });
+    }
+  });
+}
+
+async function adaptVideoFile(file, injectedBrowserAPI) {
+  const {
+    buildEvidenceBundle,
+    createGovernanceContext,
+    ExtractionStatus,
+    createExtractionError
+  } = resolveEvidenceBundleAPI();
 
   if (!file || typeof file !== 'object') {
     return {
       bundle: buildEvidenceBundle({
         extraction_status: ExtractionStatus.REJECTED,
-        extraction_errors: [createExtractionError('INVALID_INPUT', 'input', 'File object is invalid')]
+        extraction_errors: [
+          createExtractionError('INVALID_INPUT', 'input', 'File object is invalid')
+        ]
       }),
       governanceContext: null
     };
@@ -156,37 +164,40 @@ async function adaptVideoFile(file, browserAPI) {
       bundle: buildEvidenceBundle({
         extraction_status: ExtractionStatus.REJECTED,
         extraction_errors: [
-          createExtractionError('UNSUPPORTED_INPUT', 'file_type_check', `File type "${file.type}" is not a supported video`)
+          createExtractionError(
+            'UNSUPPORTED_INPUT',
+            'file_type_check',
+            `File type "${file.type}" is not a supported video`
+          )
         ]
       }),
       governanceContext: null
     };
   }
 
+  const browserAPI = injectedBrowserAPI || getDefaultBrowserAPI();
   const fileMetadata = extractFileMetadata(file);
-  const videoMetadata = await readVideoMetadata(file, browserAPI);
-
-  let extractionStatus = ExtractionStatus.COMPLETE;
-  let extractionErrors = [];
-
-  if (videoMetadata.error) {
-    extractionErrors.push(
-      createExtractionError(videoMetadata.error, 'video_metadata_read', 'Failed to read video metadata')
-    );
-  }
+  const metadataResult = await readVideoMetadata(file, browserAPI);
+  const extractionErrors = metadataResult.error
+    ? [
+        createExtractionError(
+          metadataResult.error.code,
+          metadataResult.error.stage,
+          metadataResult.error.message
+        )
+      ]
+    : [];
 
   const bundle = buildEvidenceBundle({
     file: fileMetadata,
-    video: videoMetadata,
-    extraction_status: extractionStatus,
+    video: metadataResult.video,
+    extraction_status: metadataResult.error ? ExtractionStatus.FAILED : ExtractionStatus.COMPLETE,
     extraction_errors: extractionErrors
   });
 
-  const governanceContext = createGovernanceContext(bundle);
-
   return {
     bundle,
-    governanceContext
+    governanceContext: createGovernanceContext(bundle)
   };
 }
 
@@ -198,12 +209,10 @@ const api = {
   getDefaultBrowserAPI
 };
 
-// Browser context
 if (typeof globalThis !== 'undefined') {
   globalThis.RealityCheckVideoAdapter = api;
 }
 
-// Node.js context
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 }
