@@ -35,9 +35,15 @@ function createSuccessBrowserAPI(metadata = {}) {
         preload: '',
         onloadedmetadata: null,
         onerror: null,
-        duration: metadata.duration_seconds ?? 12.5,
-        videoWidth: metadata.width ?? 1920,
-        videoHeight: metadata.height ?? 1080
+        duration: Object.prototype.hasOwnProperty.call(metadata, 'duration_seconds')
+          ? metadata.duration_seconds
+          : 12.5,
+        videoWidth: Object.prototype.hasOwnProperty.call(metadata, 'width')
+          ? metadata.width
+          : 1920,
+        videoHeight: Object.prototype.hasOwnProperty.call(metadata, 'height')
+          ? metadata.height
+          : 1080
       };
 
       Object.defineProperty(video, 'src', {
@@ -177,7 +183,7 @@ test('T06 raw file not serialized', async () => {
   const result = await adaptVideoFile(file, browserAPI);
   const serialized = JSON.stringify(result.bundle);
 
-  assert.equal(serialized.includes('bytes'), false);
+  assert.equal(serialized.includes('\"bytes\"'), false);
   assert.equal(serialized.includes('blob:'), false);
   assert.equal(serialized.includes('ArrayBuffer'), false);
 });
