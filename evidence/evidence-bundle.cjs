@@ -10,9 +10,12 @@
  * Contract RC-WC-002 compliance:
  * - Only evidence from verified observations
  * - No raw media bytes
- * - Explicit coverage state with NOT_SUPPORTED/FAILED/CHECKED/PARTIAL
+ * - Explicit coverage state: CHECKED (all required fields valid), PARTIAL (some valid, some missing/invalid),
+ *   FAILED (attempted but all invalid), NOT_SUPPORTED (not implemented)
  * - Deterministic validation (no || shortcuts)
  * - Distinguishes MISSING (field absent/null) from INVALID (field failed validation)
+ * - VIDEO_METADATA coverage CHECKED only if ALL three fields (duration, width, height) are valid
+ * - VIDEO_METADATA coverage PARTIAL if some fields valid and some missing/invalid
  * - Governance-ready context: INCONCLUSIVE for metadata-only, ANALYSIS_FAILED for errors/rejected
  */
 
@@ -26,17 +29,18 @@ const VerificationStatus = {
 };
 
 const CoverageStatus = {
-  CHECKED: 'CHECKED',       // Successfully extracted and validated
-  FAILED: 'FAILED',         // Attempted extraction but validation failed
+  CHECKED: 'CHECKED',              // All required fields present and valid
+  PARTIAL: 'PARTIAL',              // Some fields valid, some missing or invalid
+  FAILED: 'FAILED',                // Attempted extraction but all validation failed
   NOT_SUPPORTED: 'NOT_SUPPORTED',  // Capability not implemented in RC-WC-002
-  PARTIAL: 'PARTIAL'        // Some fields extracted, others missing/failed
+  NOT_APPLICABLE: 'NOT_APPLICABLE' // Field does not apply to this input
 };
 
 const ExtractionStatus = {
-  COMPLETE: 'COMPLETE',     // All applicable observations extracted and valid
-  PARTIAL: 'PARTIAL',       // Some observations extracted, some failed/missing
-  FAILED: 'FAILED',         // Extraction failed; no valid observations
-  REJECTED: 'REJECTED'      // Input rejected before extraction (wrong type, etc.)
+  COMPLETE: 'COMPLETE',   // All applicable observations extracted and valid
+  PARTIAL: 'PARTIAL',     // Some observations extracted, some failed/missing
+  FAILED: 'FAILED',       // Extraction failed; no valid observations
+  REJECTED: 'REJECTED'    // Input rejected before extraction (wrong type, etc.)
 };
 
 const AcquisitionMethod = {
@@ -49,7 +53,7 @@ const ProcessingLocation = {
 
 /**
  * Check if a value is a legitimate observed numeric field
- * Returns { valid: true/false, error?: string }
+ * Returns { valid: true/false/'MISSING', error?: string }
  * 
  * Valid: finite, non-negative numbers (including 0)
  * Invalid: NaN, Infinity, negative, non-number
@@ -90,7 +94,11 @@ function validateNumericField(value, fieldName) {
 
 /**
  * Validate all numeric video metadata fields
- * Returns { valid: true/false, errors?: string[], allMissing?: boolean }
+ * Returns { valid: true/false, errors?: string[], coverage: 'CHECKED'/'PARTIAL'/'FAILED' }
+ * 
+ * CHECKED: all three fields (duration, width, height) are valid
+ * PARTIAL: at least one field is valid, but not all three are valid
+ * FAILED: all fields are either invalid or missing
  */
 function validateVideoMetadata(metadata) {
   const errors = [];
@@ -100,27 +108,42 @@ function validateVideoMetadata(metadata) {
     height: validateNumericField(metadata.height, 'height')
   };
 
-  let hasValidField = false;
-  let hasMissingField = false;
+  const validFieldCount = Object.values(validations).filter(
+    (v) => v.valid === true
+  ).length;
 
-  Object.entries(validations).forEach(([field, result]) => {
-    if (result.valid === 'MISSING') {
-      hasMissingField = true;
-    } else if (result.valid === true) {
-      hasValidField = true;
-    } else if (result.valid === false) {
+  const missingFieldCount = Object.values(validations).filter(
+    (v) => v.valid === 'MISSING'
+  ).length;
+
+  Object.values(validations).forEach((result) => {
+    if (result.valid === false) {
       errors.push(result.error);
     }
   });
 
-  // All fields missing = no attempt to extract
-  const allMissing = !hasValidField && hasMissingField && errors.length === 0;
+  // Determine coverage
+  let coverage;
+  if (validFieldCount === 3) {
+    // All three fields are valid
+    coverage = CoverageStatus.CHECKED;
+  } else if (validFieldCount > 0) {
+    // Some fields are valid, but not all
+    coverage = CoverageStatus.PARTIAL;
+  } else if (missingFieldCount === 3) {
+    // All fields are missing; no attempt was made
+    coverage = CoverageStatus.NOT_SUPPORTED;
+  } else {
+    // Some fields are present but invalid
+    coverage = CoverageStatus.FAILED;
+  }
 
   return {
-    valid: errors.length === 0 && hasValidField, // Must have at least one valid field
+    valid: coverage === CoverageStatus.CHECKED,
     errors,
-    allMissing,
-    validations
+    coverage,
+    validations,
+    validFieldCount
   };
 }
 
@@ -309,26 +332,39 @@ function buildEvidenceBundle(inputs = {}) {
   }
 
   // Validate and add video metadata observation
-  // Only add if at least one field is present and valid
+  // Coverage determined by videoValidation.coverage:
+  // - CHECKED: all three fields valid
+  // - PARTIAL: some fields valid, some missing/invalid
+  // - FAILED: all fields invalid/present
+  // - NOT_SUPPORTED: all fields missing (never attempted)
   const videoValidation = validateVideoMetadata(video);
 
-  if (videoValidation.allMissing) {
+  if (videoValidation.coverage === CoverageStatus.NOT_SUPPORTED) {
     // All video fields are missing: no attempt made
     bundle.coverage.video_metadata = CoverageStatus.NOT_SUPPORTED;
-  } else if (videoValidation.valid === true) {
-    // At least one field is valid
+  } else if (videoValidation.coverage === CoverageStatus.CHECKED) {
+    // All three fields are valid
     bundle.observations.push(createVideoMetadataObservation(video, videoValidation.validations));
     bundle.coverage.video_metadata = CoverageStatus.CHECKED;
-  } else if (videoValidation.errors.length > 0) {
-    // At least one field was present but validation failed
-    bundle.coverage.video_metadata = CoverageStatus.FAILED;
-    bundle.extraction.errors.push(
-      createExtractionError(
-        'VIDEO_METADATA_VALIDATION_FAILED',
-        'video_metadata',
-        videoValidation.errors.join('; ')
-      )
-    );
+  } else {
+    // PARTIAL or FAILED: some fields present but not all valid
+    bundle.coverage.video_metadata = videoValidation.coverage;
+
+    // Only add observation if at least one field is valid (PARTIAL case)
+    if (videoValidation.validFieldCount > 0) {
+      bundle.observations.push(createVideoMetadataObservation(video, videoValidation.validations));
+    }
+
+    // Record any validation errors
+    if (videoValidation.errors.length > 0) {
+      bundle.extraction.errors.push(
+        createExtractionError(
+          'VIDEO_METADATA_VALIDATION_FAILED',
+          'video_metadata',
+          videoValidation.errors.join('; ')
+        )
+      );
+    }
   }
 
   // Automatically update extraction status based on coverage (only if not pre-set to REJECTED)
@@ -336,18 +372,21 @@ function buildEvidenceBundle(inputs = {}) {
     const checkedFields = Object.values(bundle.coverage).filter(
       (s) => s === CoverageStatus.CHECKED
     ).length;
+    const partialFields = Object.values(bundle.coverage).filter(
+      (s) => s === CoverageStatus.PARTIAL
+    ).length;
     const failedFields = Object.values(bundle.coverage).filter(
       (s) => s === CoverageStatus.FAILED
     ).length;
 
-    if (checkedFields > 0 && failedFields > 0) {
+    if (partialFields > 0 || (checkedFields > 0 && failedFields > 0)) {
       bundle.extraction.status = ExtractionStatus.PARTIAL;
-    } else if (checkedFields === 0 && failedFields > 0) {
-      bundle.extraction.status = ExtractionStatus.FAILED;
-    } else if (checkedFields > 0 && failedFields === 0) {
+    } else if (checkedFields > 0) {
       bundle.extraction.status = ExtractionStatus.COMPLETE;
+    } else if (failedFields > 0) {
+      bundle.extraction.status = ExtractionStatus.FAILED;
     } else {
-      // No fields checked or failed
+      // No fields checked, partial, or failed
       bundle.extraction.status = ExtractionStatus.FAILED;
     }
   }
